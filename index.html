@@ -130,6 +130,7 @@
   .tipo-pill.selected.verde { border-color:var(--green); background:var(--green-pale); color:var(--green); }
   .tipo-pill.selected.blu   { border-color:var(--blue); background:var(--blue-pale); color:var(--blue); }
   .tipo-pill.selected.oro   { border-color:var(--gold); background:var(--gold-pale); color:var(--gold); }
+  .tipo-pill.selected.blu   { border-color:var(--blue); background:var(--blue-pale); color:var(--blue); }
 
   /* ---- BUTTONS ---- */
   .btn {
@@ -608,6 +609,14 @@
       </div>
     </div>
 
+    <div id="malattia-section" style="display:none">
+      <label>Tipo malattia</label>
+      <div class="tipo-group">
+        <button class="tipo-pill selected blu" id="pill-mal-pag" onclick="selezionaMalattia('pagata')">💊 Pagata</button>
+        <button class="tipo-pill" id="pill-mal-nonpag" onclick="selezionaMalattia('non_pagata')">🚫 Non pagata</button>
+      </div>
+    </div>
+
     <div id="extra-section" style="display:none">
       <div class="row2" style="align-items:start;">
         <div>
@@ -660,7 +669,7 @@
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--rose-deep)"></div>Lavoro</div>
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--green)"></div>Ferie</div>
       <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--blue)"></div>Malattia</div>
-      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Permesso</div>
+      <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--gold)"></div>Extra</div>
     </div>
   </div>
 
@@ -775,8 +784,28 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-ghost" onclick="esportaDati()">📤 Esporta JSON</button>
-      <button class="btn btn-ghost" onclick="document.getElementById('import-input').click()">📥 Importa JSO
-// ========================================
+      <label for="import-input" class="btn btn-ghost" style="cursor:pointer;">📥 Importa JSON</label>
+    </div>
+    <input type="file" id="import-input" accept=".json" style="display:none" onchange="importaDati(event)">
+    <div style="margin-top:12px;">
+      <button class="btn btn-danger" style="width:100%;padding:11px;" onclick="cancellaTutto()">🗑 Cancella tutti i dati</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== MODAL DETTAGLIO GIORNO ===== -->
+<div class="modal-overlay" id="modal-overlay" onclick="chiudiModal(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title"></div>
+    <div id="modal-body"></div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="chiudiModalBtn()">Chiudi</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
 <script>
 // ============================================================
 // STORAGE
@@ -934,7 +963,7 @@ function calcolaGuadagno(g) {
   const mx = parseFloat(settings.moltiplicatoreExtra) || 1.5;
   if (g.tipo === 'ferie') return (g.sottotipo==='non_pagate') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
   if (g.tipo === 'permesso') return g.ore ? (parseFloat(g.ore)||0) * p : 0;
-  if (g.tipo === 'malattia') return 0;
+  if (g.tipo === 'malattia') return (g.sottotipo === 'non_pagata') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
   return (g.ore||0) * p + (g.extra||0) * p * mx;
 }
 
@@ -943,6 +972,7 @@ function calcolaGuadagno(g) {
 // ============================================================
 function selezionaTipo(tipo) {
   tipoSel = tipo;
+  if (tipo === 'malattia') { malattia_tipo = 'pagata'; setTimeout(function(){ var pp=document.getElementById('pill-mal-pag'); var pn=document.getElementById('pill-mal-nonpag'); if(pp){pp.classList.add('selected','blu');} if(pn){pn.classList.remove('selected','blu');} },10); }
   document.querySelectorAll('.tipo-pill').forEach(p => {
     p.classList.remove('selected','verde','blu','oro');
     if (p.dataset.tipo === tipo) {
@@ -954,6 +984,7 @@ function selezionaTipo(tipo) {
   });
   document.getElementById('ore-section').style.display = (tipo==='lavoro') ? '' : 'none';
   document.getElementById('ferie-section').style.display = (tipo==='ferie') ? '' : 'none';
+  var malEl = document.getElementById('malattia-section'); if(malEl) malEl.style.display = (tipo==='malattia') ? '' : 'none';
   var extEl = document.getElementById('extra-section'); if(extEl) extEl.style.display = (tipo==='extra') ? '' : 'none';
 }
 
@@ -966,6 +997,14 @@ function selezionaFerie(tipo) {
   document.getElementById('pill-ferie-pag').classList.toggle('verde', tipo==='pagate');
   document.getElementById('pill-ferie-nonpag').classList.toggle('selected', tipo==='non_pagate');
   document.getElementById('pill-ferie-nonpag').classList.toggle('verde', tipo==='non_pagate');
+}
+
+function selezionaMalattia(tipo) {
+  malattia_tipo = tipo;
+  document.getElementById('pill-mal-pag').classList.toggle('selected', tipo==='pagata');
+  document.getElementById('pill-mal-pag').classList.toggle('blu', tipo==='pagata');
+  document.getElementById('pill-mal-nonpag').classList.toggle('selected', tipo==='non_pagata');
+  document.getElementById('pill-mal-nonpag').classList.toggle('blu', tipo==='non_pagata');
 }
 
 function aggiungiGiornata() {
@@ -993,7 +1032,7 @@ function aggiungiGiornata() {
     giornate = giornate.filter(g => g.data !== data);
   }
 
-  giornate.push({ data, tipo: tipoSel, sottotipo: tipoSel==='ferie' ? ferieTipo : null, ore, extra, guadagnoPattuito: guadagnoPattuito, nota, ts: Date.now() });
+  giornate.push({ data: data, tipo: tipoSel, sottotipo: tipoSel==='ferie' ? ferieTipo : (tipoSel==='malattia' ? malattia_tipo : null), ore: ore, extra: extra, guadagnoPattuito: guadagnoPattuito, nota: nota, ts: Date.now() });
   giornate.sort((a,b) => a.data.localeCompare(b.data));
   salvaDatiUtente();
   pushToSheets();
@@ -1004,12 +1043,14 @@ function aggiungiGiornata() {
   var eGp = document.getElementById('input-guad-extra'); if(eGp) eGp.value = '';
   document.getElementById('input-nota').value = '';
 
-  const emoji = {lavoro:'✅', ferie:'🌴', malattia:'🤒', permesso:'🕐'}[tipoSel];
+  const emoji = ({lavoro:'✅', ferie:'🌴', malattia:'🤒', extra:'⚡'})[tipoSel] || '✅';
   toast(emoji + ' Giornata salvata!');
   renderRecenti();
   updateHeader();
   calcolaStreak();
-  setDataOggi(); // reimposta data su oggi dopo salvataggio
+  setDataOggi();
+  if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
+  if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
 }
 
 // ============================================================
@@ -1022,7 +1063,9 @@ function eliminaGiornata(data) {
   pushToSheets();
   toast('🗑 Eliminata');
   renderRecenti();
+  updateHeader();
   if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
+  if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
   chiudiModalBtn();
 }
 
@@ -1049,7 +1092,7 @@ function renderRecenti() {
 
 function entryHTML(g, showDel=true) {
   const tipo = g.tipo || 'lavoro';
-  const label = ({lavoro:'💼', ferie: g.sottotipo==='non_pagate' ? '🌴🚫' : '🌴💰', malattia:'🤒', extra:'⚡'})[tipo] || '📋';
+  const label = ({lavoro:'💼', ferie: g.sottotipo==='non_pagate' ? '🌴🚫' : '🌴💰', malattia: g.sottotipo==='non_pagata' ? '🤒🚫' : '🤒💊', extra:'⚡'})[tipo] || '📋';
   const oreTxt = tipo === 'lavoro'
     ? fmtOre(g.ore) + (g.extra ? ` <small style="color:var(--gold)">+${fmtOre(g.extra)}</small>` : '')
     : tipo === 'ferie' ? 'Ferie'
@@ -1057,7 +1100,7 @@ function entryHTML(g, showDel=true) {
     : tipo === 'extra' ? fmtOre(g.ore||0) + ' · ' + (g.guadagnoPattuito != null ? fmtEuro(g.guadagnoPattuito) : '—')
     : fmtOre(g.ore||0);
   const guad = settings.pagaOraria ? fmtEuro(calcolaGuadagno(g)) : '';
-  const delBtn = showDel ? `<button class="btn-danger" onclick="eliminaGiornata('${g.data}')">✕</button>` : '';
+  const delBtn = showDel ? `<button class="btn-danger" onclick="event.stopPropagation();eliminaGiornata('${g.data}')">✕</button>` : '';
   return `<div class="entry-item tipo-${tipo}" onclick="apriModalGiorno('${g.data}')">
     <div class="entry-dot dot-${tipo}"></div>
     <div class="entry-info">
@@ -1087,7 +1130,7 @@ function apriModalGiorno(data) {
   const guad = calcolaGuadagno(g);
   document.getElementById('modal-body').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div class="chip">${tipo==='ferie' ? (g.sottotipo==='non_pagate' ? '🌴 Ferie non pagate' : '🌴 Ferie pagate') : ({lavoro:'💼 Lavoro',malattia:'🤒 Malattia',extra:'⚡ Giornata Extra'})[tipo]||tipo}</div>
+      <div class="chip">${tipo==='ferie' ? (g.sottotipo==='non_pagate' ? '🌴 Ferie non pagate' : '🌴 Ferie pagate') : ({lavoro:'💼 Lavoro',malattia: g.sottotipo==='non_pagata' ? '🤒 Malattia non pagata' : '🤒 Malattia pagata',extra:'⚡ Giornata Extra'})[tipo]||tipo}</div>
       ${tipo==='extra' ? `
         <div class="setting-row" style="padding:8px 0">
           <span class="setting-label">Ore effettive</span>
@@ -1245,30 +1288,33 @@ function precompilData(ds) {
 // GRAFICO SETTIMANALE
 // ============================================================
 function renderGraficoSettimane(del_mese, y, m) {
+  // Raggruppa per settimana ISO: trova il lunedì di ogni giorno
   var lavoro = del_mese.filter(function(g){ return (g.tipo||'lavoro')==='lavoro'; });
-  var settimane = {};
+  var settimane = {}; // chiave = "YYYY-MM-DD" del lunedì della settimana
+  var settLabels = {};
   lavoro.forEach(function(g) {
-    var d = parseInt(g.data.slice(8));
-    var w = Math.ceil(d/7);
-    settimane[w] = (settimane[w]||0) + (g.ore||0) + (g.extra||0);
+    var dt = new Date(g.data + 'T12:00:00');
+    var dow = dt.getDay() === 0 ? 6 : dt.getDay() - 1; // 0=lun
+    var lun = new Date(dt); lun.setDate(dt.getDate() - dow);
+    var key = lun.getFullYear()+'-'+String(lun.getMonth()+1).padStart(2,'0')+'-'+String(lun.getDate()).padStart(2,'0');
+    settimane[key] = (settimane[key]||0) + (g.ore||0) + (g.extra||0);
+    // Label: "4-10 mag"
+    var fine = new Date(lun); fine.setDate(lun.getDate()+6);
+    settLabels[key] = lun.getDate()+'–'+fine.getDate()+' '+['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'][lun.getMonth()];
   });
-  var keys = [1,2,3,4,5].filter(function(w){ return settimane[w]; });
+  var keys = Object.keys(settimane).sort();
   var el = document.getElementById('chart-settimane');
   if (!el) return;
-  if (!keys.length) {
-    el.innerHTML = '<div style="font-size:0.78rem;color:var(--brown-light);padding:10px 0">Nessun dato</div>';
-    return;
-  }
-  var maxOre = Math.max.apply(null, keys.map(function(w){ return settimane[w]; }));
-  el.innerHTML = keys.map(function(w) {
-    var ore = settimane[w];
-    var h = Math.max(28, Math.round((ore / maxOre) * 88));
-    var label = fmtOre(ore);
+  if (!keys.length) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--brown-light);padding:10px 0">Nessun dato</div>'; return; }
+  var maxOre = Math.max.apply(null, keys.map(function(k){ return settimane[k]; }));
+  el.innerHTML = keys.map(function(k, i) {
+    var ore = settimane[k];
+    var h = Math.max(24, Math.round((ore/maxOre)*88));
     return '<div class="bar-col">'
-      + '<div class="bar-fill" style="height:' + h + 'px">'
-      + '<span class="bar-fill-label">' + label + '</span>'
+      + '<div class="bar-fill" style="height:'+h+'px">'
+      + '<span class="bar-fill-label">'+fmtOre(ore)+'</span>'
       + '</div>'
-      + '<div class="bar-label">Sett.<br>' + w + '</div>'
+      + '<div class="bar-label">'+settLabels[k]+'</div>'
       + '</div>';
   }).join('');
 }
