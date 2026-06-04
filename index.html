@@ -559,8 +559,8 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
     <div id="streak-badge" style="display:none" class="streak-badge"></div>
-    <button onclick="logout()" style="background:none;border:1px solid var(--rose-border);border-radius:20px;padding:4px 12px;font-size:0.72rem;color:var(--brown-light);cursor:pointer;" id="logout-btn">↩ Esci</button>
-  </div>
+    <button onclick="logout()" style="background:none;border:1px solid var(--rose-border);border-radius:20px;padding:4px 12px;font-size:0.72rem;color:var(--brown-light);cursor:pointer;" id="logout-btn">Logout</button>
+    </div>
   </div>
 </header>
 
@@ -817,7 +817,7 @@ const S = {
 
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
-const WORKER_API_KEY = 'INSERISCI_QUI_LA_TUA_API_KEY';
+const WORKER_API_KEY = 'app-kekko-2024-secret';
 
 
 async function pushToSheets() {
@@ -1001,53 +1001,11 @@ function renderAdminList(utenti, daSheets) {
           🗑 Elimina
         </button>
       </div>
-    </div>`;
+    </div>
+    `;
   }).join('');
 }
 
-function adminMostraCodice(uid, nome) {
-  const utenti = S.get('utenti', []);
-  const u = utenti.find(x => x.id === uid);
-  if (!u) { toast('Utente non trovato in locale'); return; }
-  const codice = generaCodiceInvito(u);
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(codice)
-      .then(() => toast('📋 Codice copiato: ' + codice))
-      .catch(() => alert('Codice invito:\n' + codice));
-  } else {
-    alert('Codice invito per ' + nome + ':\n\n' + codice + '\n\nCopia e manda via WhatsApp!');
-  }
-}
-
-async function adminEliminaUtente(uid, nome) {
-  if (!confirm('Eliminare definitivamente il profilo di "' + nome + '"?')) return;
-  toast('🗑 Eliminazione in corso…');
-  try {
-    await fetch(WORKER_URL + '/api/utente/' + uid, {
-      method: 'DELETE',
-      headers: { 'X-API-Key': WORKER_API_KEY },
-    });
-  } catch(err) { console.error('Delete error:', err); }
-  let utenti = S.get('utenti', []);
-  utenti = utenti.filter(u => u.id !== uid);
-  S.set('utenti', utenti);
-  localStorage.removeItem('giornate_'    + uid);
-  localStorage.removeItem('settings_'   + uid);
-  localStorage.removeItem('storicoPaga_' + uid);
-  if (utenteCorrente && utenteCorrente.id === uid) {
-    S.set('utenteCorrente', null);
-    utenteCorrente = null;
-    mostraLogin();
-  } else {
-    toast('✅ Profilo "' + nome + '" eliminato');
-    caricaUtentiDaSheets();
-  }
-}
-
-// ============================================================
-// INIT
-// ============================================================
-initLogin();
 </script>
 </body>
 </html>
