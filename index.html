@@ -559,8 +559,8 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
     <div id="streak-badge" style="display:none" class="streak-badge"></div>
-    <button onclick="logout()" style="background:none;border:1px solid var(--rose-border);border-radius:20px;padding:4px 12px;font-size:0.72rem;color:var(--brown-light);cursor:pointer;" id="logout-btn">Logout</button>
-    </div>
+    <button onclick="logout()" style="background:none;border:1px solid var(--rose-border);border-radius:20px;padding:4px 12px;font-size:0.72rem;color:var(--brown-light);cursor:pointer;" id="logout-btn">↩ Esci</button>
+  </div>
   </div>
 </header>
 
@@ -777,7 +777,7 @@
       <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--brown-light);margin-bottom:8px;">☁️ Cloudflare Sync</div>
       <div style="display:flex;align-items:center;gap:10px;background:var(--green-pale);border:1px solid var(--green-border);border-radius:10px;padding:10px 12px;">
         <div id="sheets-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--green);flex-shrink:0"></div>
-        <div style="flex:1;font-size:0.78rem;color:var(--brown)" id="sheets-status-text">Connesso a Google Sheets</div>
+        <div style="flex:1;font-size:0.78rem;color:var(--brown)" id="sheets-status-text">Connesso ✓</div>
         <button class="btn btn-ghost" style="padding:5px 12px;font-size:0.72rem;" onclick="syncManuale()">🔄 Sincronizza</button>
       </div>
       <div style="font-size:0.70rem;color:var(--brown-light);margin-top:6px;">Ultimo sync: <span id="ultimo-sync">mai</span></div>
@@ -820,6 +820,1264 @@ const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
 
 
+// ============================================================
+// STATE
+// ============================================================
+// App state
+let giornate    = [];
+let settings    = {};
+let storicoPaga = [];
+let tipoSel     = 'lavoro';
+let ferieTipo   = 'pagate';
+let meseVisto   = { y: new Date().getFullYear(), m: new Date().getMonth() };
+
+// Login state
+const AVATARS      = ['🌸','🌺','🌻','🌈','⭐','🦋','🍀','🎀','🐱','🦊','🐼','🌙'];
+let utenteCorrente = null;
+let pinBuffer      = '';
+let newPinBuffer   = '';
+let avatarSel      = AVATARS[0];
+let existPinBuffer = '';
+let existAvatarSel = AVATARS[0];
+let pinTargetId    = null;
+let adminPinBuffer = '';
+
+const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const MESI_SHORT = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const GIORNI_SHORT = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+
+// ============================================================
+// UTILS
+// ============================================================
+function fmtData(d) {
+  const dt = new Date(d + 'T12:00:00');
+  return dt.toLocaleDateString('it-IT', { weekday:'short', day:'numeric', month:'short' });
+}
+function fmtEuro(n) { return '€ ' + Number(n).toFixed(2).replace('.',','); }
+function fmtOre(n) {
+  if (!n || n === 0) return '0h';
+  const h = Math.floor(n); const m = Math.round((n-h)*60);
+  return h + 'h' + (m ? ' ' + m + 'm' : '');
+}
+function chiaveM(y, m) { return y + '-' + String(m+1).padStart(2,'0'); }
+function setDataOggi() {
+  try {
+    const inp = document.getElementById('input-data');
+    if (!inp) return;
+    inp.value = '';
+    inp.value = oggi();
+    // Fallback Safari: se value è ancora vuoto usa valueAsDate
+    if (!inp.value) {
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      inp.valueAsDate = d;
+    }
+  } catch(e) {}
+}
+
+function oggi() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const g = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + g;
+}
+
+function toast(msg, dur=2400) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ============================================================
+// PAGA EFFETTIVA PER DATA
+// ============================================================
+function pagaPerData(dataStr) {
+  const pBase = parseFloat(settings.pagaOraria) || 0;
+  if (!storicoPaga.length) return pBase;
+  const sorted = [...storicoPaga].sort((a,b) => b.dal.localeCompare(a.dal));
+  for (const sp of sorted) {
+    if (dataStr >= sp.dal) return parseFloat(sp.paga) || 0;
+  }
+  return parseFloat(sorted[sorted.length-1]?.paga) || pBase;
+}
+
+function calcolaGuadagno(g) {
+  const p = pagaPerData(g.data);
+  const mx = parseFloat(settings.moltiplicatoreExtra) || 1.5;
+  if (g.tipo === 'ferie') return (g.sottotipo==='non_pagate') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
+  if (g.tipo === 'permesso') return g.ore ? (parseFloat(g.ore)||0) * p : 0;
+  if (g.tipo === 'malattia') return (g.sottotipo === 'non_pagata') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
+  return (g.ore||0) * p + (g.extra||0) * p * mx;
+}
+
+// ============================================================
+// TIPO GIORNATA
+// ============================================================
+function selezionaTipo(tipo) {
+  tipoSel = tipo;
+  if (tipo === 'malattia') { malattia_tipo = 'pagata'; setTimeout(function(){ var pp=document.getElementById('pill-mal-pag'); var pn=document.getElementById('pill-mal-nonpag'); if(pp){pp.classList.add('selected','blu');} if(pn){pn.classList.remove('selected','blu');} },10); }
+  document.querySelectorAll('.tipo-pill').forEach(p => {
+    p.classList.remove('selected','verde','blu','oro');
+    if (p.dataset.tipo === tipo) {
+      p.classList.add('selected');
+      if (tipo==='ferie') p.classList.add('verde');
+      if (tipo==='malattia') p.classList.add('blu');
+      if (tipo==='extra') p.classList.add('oro');
+    }
+  });
+  document.getElementById('ore-section').style.display = (tipo==='lavoro') ? '' : 'none';
+  document.getElementById('ferie-section').style.display = (tipo==='ferie') ? '' : 'none';
+  var malEl = document.getElementById('malattia-section'); if(malEl) malEl.style.display = (tipo==='malattia') ? '' : 'none';
+  var extEl = document.getElementById('extra-section'); if(extEl) extEl.style.display = (tipo==='extra') ? '' : 'none';
+}
+
+// ============================================================
+// AGGIUNGI GIORNATA
+// ============================================================
+function selezionaFerie(tipo) {
+  ferieTipo = tipo;
+  document.getElementById('pill-ferie-pag').classList.toggle('selected', tipo==='pagate');
+  document.getElementById('pill-ferie-pag').classList.toggle('verde', tipo==='pagate');
+  document.getElementById('pill-ferie-nonpag').classList.toggle('selected', tipo==='non_pagate');
+  document.getElementById('pill-ferie-nonpag').classList.toggle('verde', tipo==='non_pagate');
+}
+
+function selezionaMalattia(tipo) {
+  malattia_tipo = tipo;
+  document.getElementById('pill-mal-pag').classList.toggle('selected', tipo==='pagata');
+  document.getElementById('pill-mal-pag').classList.toggle('blu', tipo==='pagata');
+  document.getElementById('pill-mal-nonpag').classList.toggle('selected', tipo==='non_pagata');
+  document.getElementById('pill-mal-nonpag').classList.toggle('blu', tipo==='non_pagata');
+}
+
+function aggiungiGiornata() {
+  const data = document.getElementById('input-data').value;
+  const nota = document.getElementById('input-nota').value.trim();
+  if (!data) { toast('📅 Scegli una data!'); return; }
+
+  var ore = 0, extra = 0, guadagnoPattuito = null;
+  if (tipoSel === 'lavoro') {
+    ore = parseFloat(document.getElementById('input-ore').value) || 0;
+    extra = parseFloat(document.getElementById('input-extra').value) || 0;
+    if (!ore) { toast('⏱ Inserisci le ore lavorate!'); return; }
+  } else if (tipoSel === 'extra') {
+    ore = parseFloat(document.getElementById('input-ore-extra-spec').value) || 0;
+    guadagnoPattuito = parseFloat(document.getElementById('input-guad-extra').value) || 0;
+    if (!ore) { toast('⏱ Inserisci le ore effettive!'); return; }
+    if (!guadagnoPattuito) { toast('💶 Inserisci il guadagno pattuito!'); return; }
+  } else if (tipoSel === 'ferie') {
+    ore = 8;
+  }
+
+  const dup = giornate.find(g => g.data === data);
+  if (dup) {
+    if (!confirm('Hai già una giornata per questa data. Sostituisci?')) return;
+    giornate = giornate.filter(g => g.data !== data);
+  }
+
+  giornate.push({ data: data, tipo: tipoSel, sottotipo: tipoSel==='ferie' ? ferieTipo : (tipoSel==='malattia' ? malattia_tipo : null), ore: ore, extra: extra, guadagnoPattuito: guadagnoPattuito, nota: nota, ts: Date.now() });
+  giornate.sort((a,b) => a.data.localeCompare(b.data));
+  salvaDatiUtente();
+  pushToSheets();
+
+  document.getElementById('input-ore').value = '';
+  document.getElementById('input-extra').value = '';
+  var eOs = document.getElementById('input-ore-extra-spec'); if(eOs) eOs.value = '';
+  var eGp = document.getElementById('input-guad-extra'); if(eGp) eGp.value = '';
+  document.getElementById('input-nota').value = '';
+
+  const emoji = ({lavoro:'✅', ferie:'🌴', malattia:'🤒', extra:'⚡'})[tipoSel] || '✅';
+  toast(emoji + ' Giornata salvata!');
+  renderRecenti();
+  updateHeader();
+  calcolaStreak();
+  setDataOggi();
+  if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
+  if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
+}
+
+// ============================================================
+// ELIMINA
+// ============================================================
+function eliminaGiornata(data) {
+  if (!confirm('Elimina questa giornata?')) return;
+  giornate = giornate.filter(g => g.data !== data);
+  salvaDatiUtente();
+  pushToSheets();
+  toast('🗑 Eliminata');
+  renderRecenti();
+  updateHeader();
+  if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
+  if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
+  chiudiModalBtn();
+}
+
+// ============================================================
+// RENDER RECENTI
+// ============================================================
+function renderRecenti() {
+  var el  = document.getElementById('lista-recenti');
+  var cnt = document.getElementById('recenti-count');
+  var now = new Date();
+  var dow = now.getDay() === 0 ? 6 : now.getDay() - 1;
+  var lun = new Date(now); lun.setDate(now.getDate() - dow);
+  var lunStr = lun.getFullYear()+'-'+String(lun.getMonth()+1).padStart(2,'0')+'-'+String(lun.getDate()).padStart(2,'0');
+  var dom = new Date(lun); dom.setDate(lun.getDate() + 6);
+  var domStr = dom.getFullYear()+'-'+String(dom.getMonth()+1).padStart(2,'0')+'-'+String(dom.getDate()).padStart(2,'0');
+  var settimana = giornate.filter(function(g){ return g.data >= lunStr && g.data <= domStr; }).reverse();
+  if (cnt) cnt.textContent = settimana.length + ' questa settimana';
+  if (!settimana.length) {
+    el.innerHTML = '<div class="empty"><div class="big">✏️</div>Nessuna giornata questa settimana.</div>';
+    return;
+  }
+  el.innerHTML = settimana.map(function(g){ return entryHTML(g); }).join('');
+}
+
+function entryHTML(g, showDel=true) {
+  const tipo = g.tipo || 'lavoro';
+  const label = ({lavoro:'💼', ferie: g.sottotipo==='non_pagate' ? '🌴🚫' : '🌴💰', malattia: g.sottotipo==='non_pagata' ? '🤒🚫' : '🤒💊', extra:'⚡'})[tipo] || '📋';
+  const oreTxt = tipo === 'lavoro'
+    ? fmtOre(g.ore) + (g.extra ? ` <small style="color:var(--gold)">+${fmtOre(g.extra)}</small>` : '')
+    : tipo === 'ferie' ? 'Ferie'
+    : tipo === 'malattia' ? 'Malattia'
+    : tipo === 'extra' ? fmtOre(g.ore||0) + ' · ' + (g.guadagnoPattuito != null ? fmtEuro(g.guadagnoPattuito) : '—')
+    : fmtOre(g.ore||0);
+  const guad = settings.pagaOraria ? fmtEuro(calcolaGuadagno(g)) : '';
+  const delBtn = showDel ? `<button class="btn-danger" onclick="event.stopPropagation();eliminaGiornata('${g.data}')">✕</button>` : '';
+  return `<div class="entry-item tipo-${tipo}" onclick="apriModalGiorno('${g.data}')">
+    <div class="entry-dot dot-${tipo}"></div>
+    <div class="entry-info">
+      <div class="entry-date">${label} ${fmtData(g.data)}</div>
+      ${g.nota ? `<div class="entry-note">${g.nota}</div>` : ''}
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div class="entry-hours">${oreTxt}</div>
+      ${guad ? `<div class="entry-earn">${guad}</div>` : ''}
+    </div>
+    ${delBtn}
+  </div>`;
+}
+
+// ============================================================
+// MODAL GIORNO
+// ============================================================
+function apriModalGiorno(data) {
+  const g = giornate.find(x => x.data === data);
+  if (!g) return;
+  const tipo = g.tipo || 'lavoro';
+  const dt = new Date(data + 'T12:00:00');
+  const titolo = dt.toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('modal-title').textContent = titolo.charAt(0).toUpperCase()+titolo.slice(1);
+
+  const paga = pagaPerData(g.data);
+  const guad = calcolaGuadagno(g);
+  document.getElementById('modal-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="chip">${tipo==='ferie' ? (g.sottotipo==='non_pagate' ? '🌴 Ferie non pagate' : '🌴 Ferie pagate') : ({lavoro:'💼 Lavoro',malattia: g.sottotipo==='non_pagata' ? '🤒 Malattia non pagata' : '🤒 Malattia pagata',extra:'⚡ Giornata Extra'})[tipo]||tipo}</div>
+      ${tipo==='extra' ? `
+        <div class="setting-row" style="padding:8px 0">
+          <span class="setting-label">Ore effettive</span>
+          <span class="setting-value">${fmtOre(g.ore||0)}</span>
+        </div>
+        <div class="setting-row" style="padding:8px 0">
+          <span class="setting-label">Guadagno pattuito</span>
+          <span class="setting-value" style="color:var(--green)">${fmtEuro(g.guadagnoPattuito||0)}</span>
+        </div>` : ''}
+      ${tipo==='lavoro' ? `
+        <div class="setting-row" style="padding:8px 0">
+          <span class="setting-label">Ore ordinarie</span>
+          <span class="setting-value">${fmtOre(g.ore)}</span>
+        </div>
+        ${g.extra ? `<div class="setting-row" style="padding:8px 0">
+          <span class="setting-label">Straordinari</span>
+          <span class="setting-value" style="color:var(--gold)">${fmtOre(g.extra)}</span>
+        </div>` : ''}
+        <div class="setting-row" style="padding:8px 0">
+          <span class="setting-label">Totale ore</span>
+          <span class="setting-value">${fmtOre((g.ore||0)+(g.extra||0))}</span>
+        </div>` : ''}
+      ${g.ore && tipo==='permesso' ? `<div class="setting-row" style="padding:8px 0"><span class="setting-label">Ore permesso</span><span class="setting-value" style="color:var(--gold)">${fmtOre(g.ore)}</span></div>` : ''}
+      ${paga && tipo!=='malattia' ? `<div class="setting-row" style="padding:8px 0">
+        <span class="setting-label">Guadagno stimato</span>
+        <span class="setting-value" style="color:var(--green)">${fmtEuro(guad)}</span>
+      </div>` : ''}
+      ${g.nota ? `<div style="background:var(--rose-pale);border-radius:8px;padding:10px;font-size:0.82rem;color:var(--brown-light);font-style:italic;">"${g.nota}"</div>` : ''}
+      <button class="btn btn-danger" style="width:100%;padding:10px;margin-top:4px;" onclick="eliminaGiornata('${data}')">🗑 Elimina questa giornata</button>
+    </div>`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function chiudiModal(e) { if(e.target===e.currentTarget) chiudiModalBtn(); }
+function chiudiModalBtn() { document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ============================================================
+// RENDER MESE
+// ============================================================
+function renderMese() {
+  const key   = chiaveM(meseVisto.y, meseVisto.m);
+  const label = MESI[meseVisto.m] + ' ' + meseVisto.y;
+  document.getElementById('mese-label-vis').textContent = label;
+
+  const del_mese = giornate.filter(g => g.data.startsWith(key));
+  const lavoro   = del_mese.filter(g => (g.tipo||'lavoro')==='lavoro');
+  const ferie    = del_mese.filter(g => g.tipo==='ferie');
+  const malattia = del_mese.filter(g => g.tipo==='malattia');
+  const permesso = del_mese.filter(g => g.tipo==='permesso');
+
+  const totOre   = lavoro.reduce((s,g) => s+g.ore, 0);
+  const totExtra = lavoro.reduce((s,g) => s+(g.extra||0), 0);
+  const totGuad  = del_mese.reduce((s,g) => s+calcolaGuadagno(g), 0);
+  const obiettivo= parseFloat(settings.obiettivoOre) || 0;
+  const perc     = obiettivo ? Math.min(110, (totOre+totExtra)/obiettivo*100) : 0;
+
+  renderCalendario(del_mese);
+
+  document.getElementById('stats-mese').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-value">${fmtOre(totOre+totExtra)}</div>
+      <div class="stat-label">Ore lavorate</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-value">${settings.pagaOraria ? fmtEuro(totGuad) : '—'}</div>
+      <div class="stat-label">Guadagno</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">${lavoro.length}</div>
+      <div class="stat-label">Giorni lavoro</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="stat-value">${ferie.length || '—'}</div>
+      <div class="stat-label">Ferie usate</div>
+    </div>
+    ${malattia.length ? `<div class="stat-card blue" style="grid-column:1/-1">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span class="stat-label" style="font-size:0.75rem">🤒 Giorni malattia</span>
+        <span class="stat-value" style="font-size:1.2rem;color:var(--blue)">${malattia.length}</span>
+      </div>
+    </div>` : ''}
+    ${obiettivo ? `<div class="stat-card" style="grid-column:1/-1">
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Obiettivo mensile</span><span>${fmtOre(totOre+totExtra)} / ${fmtOre(obiettivo)}</span></div>
+        <div class="progress-bar"><div class="progress-fill ${perc>100?'over':''}" style="width:${Math.min(100,perc)}%"></div></div>
+      </div>
+    </div>` : ''}
+  `;
+
+  renderGraficoSettimane(del_mese, meseVisto.y, meseVisto.m);
+
+  const el = document.getElementById('lista-mese');
+  if (!del_mese.length) { el.innerHTML = '<div class="empty"><div class="big">📅</div>Nessuna giornata per questo mese.</div>'; return; }
+  el.innerHTML = [...del_mese].reverse().map(g => entryHTML(g)).join('');
+}
+
+function cambiaMesseVista(dir) {
+  meseVisto.m += dir;
+  if (meseVisto.m < 0)  { meseVisto.m = 11; meseVisto.y--; }
+  if (meseVisto.m > 11) { meseVisto.m = 0;  meseVisto.y++; }
+  renderMese();
+}
+
+// ============================================================
+// CALENDARIO
+// ============================================================
+function renderCalendario(del_mese) {
+  const headEl = document.getElementById('cal-headers');
+  const bodyEl = document.getElementById('cal-body');
+
+  headEl.innerHTML = ['L','M','M','G','V','S','D'].map(d =>
+    `<div class="cal-header-day">${d}</div>`
+  ).join('');
+
+  const y = meseVisto.y, m = meseVisto.m;
+  const primoGiorno = new Date(y, m, 1);
+  let startDow = primoGiorno.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  const giorniMese = new Date(y, m+1, 0).getDate();
+  const todayStr = oggi();
+
+  const map = {};
+  del_mese.forEach(g => { map[g.data] = g; });
+
+  let cells = '';
+  for (let i=0; i<startDow; i++) cells += '<div class="cal-day empty"></div>';
+  for (let d=1; d<=giorniMese; d++) {
+    const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const g = map[ds];
+    const tipo = g ? (g.tipo||'lavoro') : null;
+    const isToday = ds === todayStr;
+    const dow = new Date(ds+'T12:00:00').getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const cls = [
+      'cal-day',
+      tipo ? `has-${tipo}` : '',
+      isToday ? 'today' : '',
+      isWeekend && !tipo ? 'weekend' : '',
+    ].filter(Boolean).join(' ');
+    const dotColor = tipo ? `var(--${tipo==='lavoro'?'rose-deep':tipo==='ferie'?'green':tipo==='malattia'?'blue':'gold'})` : 'transparent';
+    cells += `<div class="${cls}" onclick="${g ? `apriModalGiorno('${ds}')` : `precompilData('${ds}')`}">
+      <div class="cal-day-num">${d}</div>
+      <div class="cal-day-dot" style="background:${dotColor}"></div>
+    </div>`;
+  }
+  bodyEl.innerHTML = cells;
+}
+
+function precompilData(ds) {
+  document.getElementById('input-data').value = ds;
+  showTab('oggi', document.querySelectorAll('.tab-btn')[0]);
+  toast('📅 Data precompilata — aggiungi la giornata!');
+}
+
+// ============================================================
+// GRAFICO SETTIMANALE
+// ============================================================
+function renderGraficoSettimane(del_mese, y, m) {
+  // Raggruppa per settimana ISO: trova il lunedì di ogni giorno
+  var lavoro = del_mese.filter(function(g){ return (g.tipo||'lavoro')==='lavoro'; });
+  var settimane = {}; // chiave = "YYYY-MM-DD" del lunedì della settimana
+  var settLabels = {};
+  lavoro.forEach(function(g) {
+    var dt = new Date(g.data + 'T12:00:00');
+    var dow = dt.getDay() === 0 ? 6 : dt.getDay() - 1; // 0=lun
+    var lun = new Date(dt); lun.setDate(dt.getDate() - dow);
+    var key = lun.getFullYear()+'-'+String(lun.getMonth()+1).padStart(2,'0')+'-'+String(lun.getDate()).padStart(2,'0');
+    settimane[key] = (settimane[key]||0) + (g.ore||0) + (g.extra||0);
+    // Label: "4-10 mag"
+    var fine = new Date(lun); fine.setDate(lun.getDate()+6);
+    settLabels[key] = lun.getDate()+'–'+fine.getDate()+' '+['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'][lun.getMonth()];
+  });
+  var keys = Object.keys(settimane).sort();
+  var el = document.getElementById('chart-settimane');
+  if (!el) return;
+  if (!keys.length) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--brown-light);padding:10px 0">Nessun dato</div>'; return; }
+  var maxOre = Math.max.apply(null, keys.map(function(k){ return settimane[k]; }));
+  el.innerHTML = keys.map(function(k, i) {
+    var ore = settimane[k];
+    var h = Math.max(24, Math.round((ore/maxOre)*88));
+    return '<div class="bar-col">'
+      + '<div class="bar-fill" style="height:'+h+'px">'
+      + '<span class="bar-fill-label">'+fmtOre(ore)+'</span>'
+      + '</div>'
+      + '<div class="bar-label">'+settLabels[k]+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+function renderRiepilogo() {
+  const now = new Date();
+  const annoCorr = now.getFullYear();
+  document.getElementById('anno-label').textContent = annoCorr;
+
+  const delAnno = giornate.filter(g => g.data.startsWith(String(annoCorr)));
+  const lavAnno  = delAnno.filter(g => (g.tipo||'lavoro')==='lavoro');
+  const ferAnno  = delAnno.filter(g => g.tipo==='ferie');
+  const malAnno  = delAnno.filter(g => g.tipo==='malattia');
+  const totOreA  = lavAnno.reduce((s,g) => s+g.ore+(g.extra||0), 0);
+  const totGuadA = delAnno.reduce((s,g) => s+calcolaGuadagno(g), 0);
+  const ferUsate = ferAnno.length;
+  const ferTot   = parseInt(settings.ferieAnnuali) || 0;
+
+  document.getElementById('anno-stats').innerHTML = `
+    <div class="anno-card">
+      <div class="anno-val">${fmtOre(totOreA)}</div>
+      <div class="anno-label">Ore totali</div>
+    </div>
+    <div class="anno-card" style="border-color:var(--green-border)">
+      <div class="anno-val" style="color:var(--green)">${settings.pagaOraria ? fmtEuro(totGuadA) : '—'}</div>
+      <div class="anno-label">Guadagno</div>
+    </div>
+    <div class="anno-card" style="border-color:var(--gold-border)">
+      <div class="anno-val" style="color:var(--gold)">${ferUsate}${ferTot ? '/'+ferTot : ''}</div>
+      <div class="anno-label">Ferie usate</div>
+    </div>
+    <div class="anno-card">
+      <div class="anno-val">${lavAnno.length}</div>
+      <div class="anno-label">Giorni lavoro</div>
+    </div>
+    <div class="anno-card" style="border-color:var(--blue-border)">
+      <div class="anno-val" style="color:var(--blue)">${malAnno.length}</div>
+      <div class="anno-label">Malattia</div>
+    </div>
+    <div class="anno-card">
+      <div class="anno-val">${lavAnno.length ? fmtOre(totOreA/lavAnno.length) : '—'}</div>
+      <div class="anno-label">Media/giorno</div>
+    </div>
+  `;
+
+  renderGraficoAnno(annoCorr);
+
+  const map = {};
+  giornate.forEach(g => {
+    const k = g.data.substring(0,7);
+    if (!map[k]) map[k] = [];
+    map[k].push(g);
+  });
+  const keys = Object.keys(map).sort().reverse();
+  const el = document.getElementById('lista-mesi-tutti');
+  if (!keys.length) { el.innerHTML = '<div class="empty"><div class="big">📊</div>Nessun dato ancora.</div>'; return; }
+  el.innerHTML = keys.map(k => {
+    const list = map[k];
+    const [y2, m2] = k.split('-');
+    const label = MESI[parseInt(m2)-1] + ' ' + y2;
+    const lav = list.filter(g=>(g.tipo||'lavoro')==='lavoro');
+    const fer = list.filter(g=>g.tipo==='ferie').length;
+    const mal = list.filter(g=>g.tipo==='malattia').length;
+    const per = list.filter(g=>g.tipo==='permesso').length;
+    const totOre  = lav.reduce((s,g)=>s+g.ore+(g.extra||0),0);
+    const totGuad = list.reduce((s,g)=>s+calcolaGuadagno(g),0);
+    const badges = [
+      fer ? `<span class="month-badge badge-ferie">🌴 ${fer}g</span>` : '',
+      mal ? `<span class="month-badge badge-malattia">🤒 ${mal}g</span>` : '',
+      per ? `<span class="month-badge badge-permesso">🕐 ${per}g</span>` : '',
+    ].filter(Boolean).join('');
+    return `<div class="month-row" onclick="vaiAlMese(${y2},${parseInt(m2)-1})">
+      <div>
+        <div class="month-row-label">${label}</div>
+        <div class="month-row-sub">
+          <span>${lav.length} giorni · ${fmtOre(totOre)}</span>
+          ${badges}
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="month-row-earn">${settings.pagaOraria ? fmtEuro(totGuad) : fmtOre(totOre)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderGraficoAnno(y) {
+  const el = document.getElementById('chart-anno');
+  const dati = MESI_SHORT.map((_, mi) => {
+    const k = chiaveM(y, mi);
+    const lav = giornate.filter(g => g.data.startsWith(k) && (g.tipo||'lavoro')==='lavoro');
+    return lav.reduce((s,g) => s+g.ore+(g.extra||0), 0);
+  });
+  const maxOre = Math.max(...dati, 1);
+  const nowM = new Date().getMonth();
+  el.innerHTML = dati.map(function(ore, mi) {
+    var h = Math.max(ore ? 20 : 0, Math.round((ore/maxOre)*90));
+    var isCurr = mi === nowM && new Date().getFullYear() === y;
+    var color = isCurr ? 'background:linear-gradient(180deg,var(--green),#3a8a5a)' : '';
+    var label = ore ? fmtOre(ore) : '';
+    return '<div class="bar-col" style="justify-content:flex-end;">'
+      + '<div style="font-size:0.52rem;font-weight:700;color:var(--brown-light);text-align:center;margin-bottom:2px;white-space:nowrap;line-height:1;">' + label + '</div>'
+      + '<div class="bar-fill" style="height:' + h + 'px;' + color + '"></div>'
+      + '<div class="bar-label">' + MESI_SHORT[mi] + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function vaiAlMese(y, m) {
+  meseVisto = { y:parseInt(y), m:parseInt(m) };
+  showTab('mese', document.querySelectorAll('.tab-btn')[1]);
+}
+
+// ============================================================
+// IMPOSTAZIONI
+// ============================================================
+function renderImpostazioni() {
+  document.getElementById('set-paga').value = settings.pagaOraria || '';
+  document.getElementById('set-paga-dal').value = settings.pagaDal || '';
+  document.getElementById('set-extra').value = settings.moltiplicatoreExtra || 1.5;
+  document.getElementById('set-obiettivo').value = settings.obiettivoOre || '';
+  document.getElementById('set-ferie-tot').value = settings.ferieAnnuali || '';
+  renderStoricoPaga();
+  bloccaAdmin(); // Nasconde sempre il pannello admin se si riapre il tab
+}
+
+function salvaSetting(key, val) {
+  const numKeys = ['pagaOraria','moltiplicatoreExtra','obiettivoOre','ferieAnnuali'];
+  if (numKeys.includes(key)) val = parseFloat(val) || 0;
+  settings[key] = val;
+  salvaDatiUtente();
+  pushToSheets(); // Salva immediatamente su JSONBin quando cambia la paga
+  updateHeader();
+  renderStoricoPaga();
+}
+
+function aggiungiStoricoPaga() {
+  const paga = parseFloat(document.getElementById('set-paga').value);
+  const dal  = document.getElementById('set-paga-dal').value;
+  if (!paga) { toast('Inserisci la paga oraria!'); return; }
+  if (!dal)  { toast('Inserisci la data di decorrenza!'); return; }
+  const dup = storicoPaga.find(s => s.dal === dal);
+  if (dup) { dup.paga = paga; }
+  else { storicoPaga.push({ dal, paga }); }
+  storicoPaga.sort((a,b) => a.dal.localeCompare(b.dal));
+  salvaDatiUtente();
+  toast('✅ Variazione paga salvata!');
+  renderStoricoPaga();
+}
+
+function renderStoricoPaga() {
+  const el = document.getElementById('storico-paga-list');
+  if (!storicoPaga.length) { el.innerHTML = '<div style="font-size:0.78rem;color:var(--brown-light)">Nessuna variazione registrata.</div>'; return; }
+  const sorted = [...storicoPaga].sort((a,b) => b.dal.localeCompare(a.dal));
+  el.innerHTML = sorted.map((sp, i) => {
+    const isCurr = i===0;
+    return `<div class="paga-history-item ${isCurr?'current':''}">
+      <div>
+        <div class="paga-dal">Dal ${new Date(sp.dal+'T12:00:00').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'})}</div>
+        ${isCurr ? '<div style="font-size:0.68rem;color:var(--green);font-weight:600">● Attuale</div>' : ''}
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="paga-val">${fmtEuro(sp.paga)}/h</div>
+        <button class="btn-danger" onclick="eliminaStoricoPaga('${sp.dal}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function eliminaStoricoPaga(dal) {
+  storicoPaga = storicoPaga.filter(s => s.dal !== dal);
+  salvaDatiUtente();
+  toast('🗑 Variazione eliminata');
+  renderStoricoPaga();
+}
+
+
+
+// ============================================================
+// STREAK
+// ============================================================
+function calcolaStreak() {
+  const badge = document.getElementById('streak-badge');
+  const lav = giornate.filter(g=>(g.tipo||'lavoro')==='lavoro').map(g=>g.data).sort().reverse();
+  if (!lav.length) { badge.style.display='none'; return; }
+  let streak = 0, d = new Date();
+  d.setHours(12,0,0,0);
+  for (let i=0; i<60; i++) {
+    const ds = d.toISOString().slice(0,10);
+    const dow = d.getDay();
+    if (dow===0||dow===6) { d.setDate(d.getDate()-1); continue; }
+    if (lav.includes(ds)) { streak++; }
+    else if (streak>0) break;
+    else if (i>1) break;
+    d.setDate(d.getDate()-1);
+  }
+  if (streak >= 3) {
+    badge.style.display = '';
+    badge.textContent = `🔥 ${streak} giorni`;
+  } else { badge.style.display='none'; }
+}
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function esportaDati() {
+  const data = JSON.stringify({ giornate, settings, storicoPaga }, null, 2);
+  const blob = new Blob([data], { type:'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url;
+  a.download = 'mie-ore-' + oggi() + '.json';
+  a.click(); URL.revokeObjectURL(url);
+  toast('📤 Dati esportati!');
+}
+
+function importaDati(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (!parsed.giornate) { toast('❌ File non valido'); return; }
+      if (!confirm(`Importare ${parsed.giornate.length} giornate? I dati attuali verranno sostituiti.`)) return;
+      giornate    = parsed.giornate || [];
+      settings    = { ...settings, ...(parsed.settings||{}) };
+      storicoPaga = parsed.storicoPaga || [];
+      salvaDatiUtente();
+      toast('✅ Dati importati!');
+      renderRecenti();
+      renderImpostazioni();
+      updateHeader();
+    } catch { toast('❌ Errore nel file JSON'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function cancellaTutto() {
+  if (!confirm('Sei sicura? Tutti i dati verranno cancellati.')) return;
+  if (!confirm('Ultima conferma: cancellare tutto?')) return;
+  giornate=[]; settings={nome:'',pagaOraria:0,moltiplicatoreExtra:1.5,obiettivoOre:160,ferieAnnuali:26,pagaDal:''};
+  storicoPaga=[];
+  salvaDatiUtente();
+  toast('🗑 Dati cancellati');
+  renderRecenti(); renderImpostazioni(); updateHeader(); calcolaStreak();
+}
+
+// ============================================================
+// HEADER
+// ============================================================
+function updateHeader() {
+  const nome = settings.nome;
+  const now  = new Date();
+  const key  = chiaveM(now.getFullYear(), now.getMonth());
+  const del_mese = giornate.filter(g => g.data.startsWith(key) && (g.tipo||'lavoro')==='lavoro');
+  const totOre = del_mese.reduce((s,g)=>s+g.ore+(g.extra||0), 0);
+  document.getElementById('header-sub').textContent =
+    (nome ? 'Ciao '+nome+' 🌸  ·  ' : '') +
+    (totOre ? 'Questo mese: '+fmtOre(totOre) : 'Tieni traccia del tuo lavoro');
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function showTab(id, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id==='mese') renderMese();
+  if (id==='riepilogo') renderRiepilogo();
+  if (id==='impostazioni') renderImpostazioni();
+  if (id==='oggi') {
+    renderRecenti();
+    // Assicura che la data sia sempre impostata su oggi
+    const inp = document.getElementById('input-data');
+    if (!inp.value) setDataOggi();
+  }
+}
+
+// ============================================================
+// STAMPA PDF
+// ============================================================
+function apriStampa() {
+  const key      = chiaveM(meseVisto.y, meseVisto.m);
+  const label    = MESI[meseVisto.m] + ' ' + meseVisto.y;
+  const del_mese = giornate.filter(g=>g.data.startsWith(key)).sort((a,b)=>a.data.localeCompare(b.data));
+  if (!del_mese.length) { toast('📅 Nessuna giornata per questo mese!'); return; }
+
+  const lavoro   = del_mese.filter(g=>(g.tipo||'lavoro')==='lavoro');
+  const ferie    = del_mese.filter(g=>g.tipo==='ferie');
+  const malattia = del_mese.filter(g=>g.tipo==='malattia');
+  const permesso = del_mese.filter(g=>g.tipo==='permesso');
+  const totOre   = lavoro.reduce((s,g)=>s+g.ore,0);
+  const totExtra = lavoro.reduce((s,g)=>s+(g.extra||0),0);
+  const totGuad  = del_mese.reduce((s,g)=>s+calcolaGuadagno(g),0);
+  const pagaBase = parseFloat(settings.pagaOraria)||0;
+  const mx       = parseFloat(settings.moltiplicatoreExtra)||1.5;
+  const nome     = settings.nome||'';
+  const giorni   = lavoro.length;
+  const mediaOre = giorni ? (totOre+totExtra)/giorni : 0;
+  const generato = new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
+
+  const tipoLabel = { lavoro:'💼 Lavoro', ferie:'🌴 Ferie', malattia:'🤒 Malattia', permesso:'🕐 Permesso' };
+  const righe = del_mese.map((g,i) => {
+    const tipo = g.tipo||'lavoro';
+    const guad = calcolaGuadagno(g);
+    const dow  = new Date(g.data+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long'});
+    const dataFmt = new Date(g.data+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const oreTot = (g.ore||0)+(g.extra||0);
+    const bgRow = tipo==='ferie'?'#f0faf4':tipo==='malattia'?'#eef4fa':tipo==='permesso'?'#fdf9ee':i%2===0?'#fff':'#fdf5f7';
+    return `<tr style="background:${bgRow}">
+      <td class="td-n">${i+1}</td>
+      <td class="td-day">${dow.charAt(0).toUpperCase()+dow.slice(1)}</td>
+      <td class="td-date">${dataFmt}</td>
+      <td style="text-align:center;font-size:0.8rem">${tipoLabel[tipo]}</td>
+      <td class="td-h">${tipo==='lavoro'?fmtOre(g.ore):'—'}</td>
+      <td class="td-h extra">${g.extra?'+'+fmtOre(g.extra):'—'}</td>
+      <td class="td-h total">${oreTot?fmtOre(oreTot):'—'}</td>
+      <td class="td-earn">${pagaBase&&tipo!=='malattia'?fmtEuro(guad):'—'}</td>
+      <td class="td-note">${g.nota||''}</td>
+    </tr>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
+<title>Riepilogo ${label}${nome?' – '+nome:''}</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#fff;color:#3a2a2a}
+.cover{background:linear-gradient(135deg,#f5c6d6 0%,#fde8ef 55%,#fff 100%);padding:44px 52px 32px;border-bottom:2px solid #f2ccd8;position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,rgba(232,160,180,.2) 0%,transparent 70%);top:-80px;right:-60px}
+.cover-eyebrow{font-size:.68rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#c97090;margin-bottom:8px}
+.cover-title{font-family:'Playfair Display',serif;font-size:2.4rem;color:#c97090;line-height:1.1}
+.cover-sub{font-size:.88rem;color:#9e7070;margin-top:6px}
+.cover-meta{margin-top:22px;display:flex;gap:28px;flex-wrap:wrap}
+.cml{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b08080}
+.cmv{font-family:'Playfair Display',serif;font-size:1.4rem;color:#3a2a2a;margin-top:2px}
+.cmv.green{color:#5a9e7a}.cmv.rose{color:#c97090}
+.body{padding:32px 52px 52px}
+h2{font-family:'Playfair Display',serif;font-size:1.05rem;color:#c97090;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid #f2ccd8}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+thead tr{background:#f5c6d6}
+thead th{padding:9px 11px;text-align:left;font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#7a3a50}
+td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align:middle}
+.td-n{color:#b08080;font-size:.7rem;width:26px}
+.td-day{font-weight:500;width:84px}
+.td-date{color:#7a5a5a;width:88px}
+.td-h{text-align:right;font-family:'Playfair Display',serif;width:68px}
+.td-h.extra{color:#d4a853}.td-h.total{color:#c97090;font-weight:700}
+.td-earn{text-align:right;color:#5a9e7a;font-weight:700;width:88px}
+.td-note{color:#9e7070;font-style:italic;font-size:.73rem}
+.tfoot-row td{background:linear-gradient(90deg,#f5c6d6,#fde8ef);font-weight:700;font-size:.83rem;border-top:2px solid #c97090;border-bottom:none}
+.tfoot-row .td-earn{font-size:.95rem;color:#3a8a5a}
+.tfoot-row .td-h.total{font-size:.95rem;color:#7a2a50}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.sb{border:1.5px solid #f2ccd8;border-radius:10px;padding:14px 12px;text-align:center;background:#fdf5f7}
+.sb.green{border-color:#a8d8b8;background:#f0faf4}.sb.gold{border-color:#e8d090;background:#fdf9ee}.sb.blue{border-color:#b0cce0;background:#eef4fa}
+.sb-l{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b08080}
+.sb-v{font-family:'Playfair Display',serif;font-size:1.3rem;margin-top:4px;color:#c97090}
+.sb.green .sb-v{color:#4a9e6a}.sb.gold .sb-v{color:#c08a20}.sb.blue .sb-v{color:#5a8ab0}
+.paga-box{margin-top:20px;background:#fdf5f7;border:1px solid #f2ccd8;border-radius:10px;padding:14px 18px;font-size:.78rem}
+.paga-box strong{color:#c97090}
+.pr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #f2ccd8}
+.pr:last-child{border-bottom:none;font-weight:700}
+.doc-footer{margin-top:32px;padding-top:14px;border-top:1px solid #f2ccd8;display:flex;justify-content:space-between;font-size:.7rem;color:#b08080}
+.no-print{background:#f5c6d6;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;font-family:'DM Sans',sans-serif;font-size:.83rem;color:#7a3a50}
+@media print{.no-print{display:none!important}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}tr{page-break-inside:avoid}}
+</style></head><body>
+<div class="no-print">
+  <button onclick="window.close()" style="background:none;border:1px solid #f2ccd8;padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;cursor:pointer;color:#9e7070;">✕ Chiudi</button>
+  <span style="font-size:.8rem;color:#9e7070;">🌸 ${label}${nome?' · '+nome:''}</span>
+  <button onclick="window.print()" style="background:#c97090;color:white;border:none;padding:8px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">🖨️ Stampa / PDF</button>
+</div>
+<div class="cover">
+  <div class="cover-eyebrow">Riepilogo mensile ore lavorate</div>
+  <div class="cover-title">${label}</div>
+  <div class="cover-sub">${nome?'Lavoratrice: <strong>'+nome+'</strong>  ·  ':''} Generato il ${generato}</div>
+  <div class="cover-meta">
+    <div><div class="cml">Ore lavorate</div><div class="cmv rose">${fmtOre(totOre+totExtra)}</div></div>
+    <div><div class="cml">Giorni lavoro</div><div class="cmv">${giorni}</div></div>
+    ${pagaBase?`<div><div class="cml">Guadagno stimato</div><div class="cmv green">${fmtEuro(totGuad)}</div></div>`:''}
+    ${ferie.length?`<div><div class="cml">Ferie</div><div class="cmv" style="color:#5a9e7a">${ferie.length} gg</div></div>`:''}
+    ${malattia.length?`<div><div class="cml">Malattia</div><div class="cmv" style="color:#6a9ec0">${malattia.length} gg</div></div>`:''}
+    <div><div class="cml">Media/giorno</div><div class="cmv">${fmtOre(mediaOre)}</div></div>
+  </div>
+</div>
+<div class="body">
+  <h2>📋 Dettaglio giornate</h2>
+  <table>
+    <thead><tr>
+      <th>#</th><th>Giorno</th><th>Data</th><th>Tipo</th>
+      <th style="text-align:right">Ore base</th><th style="text-align:right">Straord.</th>
+      <th style="text-align:right">Totale</th><th style="text-align:right">Guadagno</th><th>Note</th>
+    </tr></thead>
+    <tbody>${righe}</tbody>
+    <tfoot><tr class="tfoot-row">
+      <td colspan="4"><strong>TOTALE ${label.toUpperCase()}</strong></td>
+      <td class="td-h" style="text-align:right"><strong>${fmtOre(totOre)}</strong></td>
+      <td class="td-h extra" style="text-align:right">${totExtra?'+'+fmtOre(totExtra):'—'}</td>
+      <td class="td-h total"><strong>${fmtOre(totOre+totExtra)}</strong></td>
+      <td class="td-earn">${pagaBase?fmtEuro(totGuad):'—'}</td>
+      <td></td>
+    </tr></tfoot>
+  </table>
+
+  ${pagaBase?`<div class="paga-box" style="margin-top:22px">
+    <strong>📊 Dettaglio calcolo paga</strong>
+    <div style="margin-top:10px">
+      <div class="pr"><span>Ore ordinarie (${fmtOre(totOre)} × ${fmtEuro(pagaBase)}/h)</span><span>${fmtEuro(totOre*pagaBase)}</span></div>
+      ${totExtra?`<div class="pr"><span>Straordinari (${fmtOre(totExtra)} × ${fmtEuro(pagaBase)}/h × ${mx})</span><span>${fmtEuro(totExtra*pagaBase*mx)}</span></div>`:''}
+      <div class="pr"><span><strong>Totale stimato</strong></span><span><strong>${fmtEuro(totGuad)}</strong></span></div>
+    </div>
+  </div>`:''}
+
+  <div class="summary-grid">
+    <div class="sb"><div class="sb-l">Ore ordinarie</div><div class="sb-v">${fmtOre(totOre)}</div></div>
+    <div class="sb gold"><div class="sb-l">Straordinari</div><div class="sb-v">${totExtra?fmtOre(totExtra):'—'}</div></div>
+    <div class="sb green"><div class="sb-l">Ferie</div><div class="sb-v">${ferie.length||'—'}</div></div>
+    <div class="sb blue"><div class="sb-l">Malattia</div><div class="sb-v">${malattia.length||'—'}</div></div>
+  </div>
+  <div class="doc-footer">
+    <span>Le Mie Ore 🌸 · Generato il ${generato}</span>
+    ${nome?`<span>${nome} · ${label}</span>`:`<span>${label}</span>`}
+  </div>
+</div>
+</body></html>`;
+
+  const win = window.open('','_blank');
+  if (!win) { toast('⚠️ Abilita i popup per stampare!'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+// ============================================================
+// MULTI-USER / LOGIN
+// ============================================================
+function makeUserId(nome, pin) {
+  const str = nome.trim().toLowerCase() + ':' + pin;
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'u_' + Math.abs(hash).toString(36);
+}
+
+function initLogin() {
+  const saved = S.get('utenteCorrente', null);
+  // Valida che l'utente salvato abbia tutti i campi necessari
+  if (saved && saved.id && saved.nome && saved.pin) {
+    utenteCorrente = saved;
+    mostraApp();
+  } else {
+    // Pulisce eventuali dati corrotti e mostra il login
+    S.set('utenteCorrente', null);
+    utenteCorrente = null;
+    mostraLogin();
+  }
+}
+
+function mostraLogin() {
+  document.getElementById('login-screen').style.display = '';
+  document.querySelector('header').style.display = 'none';
+  document.querySelector('.tabs').style.display = 'none';
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  renderUserList();
+  showLoginPanel('select');
+}
+
+function mostraApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.querySelector('header').style.display = '';
+  document.querySelector('.tabs').style.display = '';
+  document.querySelectorAll('.section').forEach(s => s.style.display = '');
+  caricaDatiUtente();
+  setDataOggi();
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-oggi').classList.add('active');
+  document.querySelectorAll('.tab-btn')[0].classList.add('active');
+  updateHeader();
+  renderRecenti();
+  calcolaStreak();
+  aggiornaUltimoSync();
+  pullFromSheets();
+}
+
+function caricaDatiUtente() {
+  const uid = utenteCorrente.id;
+  giornate    = S.get('giornate_'    + uid, []);
+  settings    = S.get('settings_'   + uid, { nome: utenteCorrente.nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
+  storicoPaga = S.get('storicoPaga_' + uid, []);
+}
+
+function salvaDatiUtente() {
+  if (!utenteCorrente) return;
+  const uid = utenteCorrente.id;
+  S.set('giornate_'    + uid, giornate);
+  S.set('settings_'   + uid, settings);
+  S.set('storicoPaga_' + uid, storicoPaga);
+}
+
+function renderUserList() {
+  const utenti = S.get('utenti', []);
+  const el = document.getElementById('users-list');
+  if (!utenti.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--brown-light);font-size:0.85rem;padding:20px 0;">Nessun profilo salvato su questo dispositivo.</div>';
+    return;
+  }
+  el.innerHTML = utenti.map(u => {
+    const g = S.get('giornate_' + u.id, []);
+    const mese = new Date().toISOString().slice(0,7);
+    const oreMese = g.filter(x => x.data.startsWith(mese) && (x.tipo||'lavoro')==='lavoro')
+                     .reduce((s,x) => s + x.ore + (x.extra||0), 0);
+    return `<div class="user-card" onclick="selezionaUtente('${u.id}')">
+      <div class="user-avatar">${u.avatar}</div>
+      <div>
+        <div class="user-name">${u.nome}</div>
+        <div class="user-sub">${oreMese ? fmtOre(oreMese) + ' questo mese' : 'Nessuna ora questo mese'}</div>
+      </div>
+      <div style="margin-left:auto;color:var(--rose-border);font-size:1.2rem;">›</div>
+    </div>`;
+  }).join('');
+}
+
+function showLoginPanel(panel) {
+  ['select','pin','new','existing','admin','invite'].forEach(p => {
+    const el = document.getElementById('login-' + p + '-panel');
+    if (el) el.style.display = p === panel ? '' : 'none';
+  });
+  pinBuffer = '';
+  updatePinDots('pin-dots', '');
+}
+
+function showNuovoUtente() {
+  showLoginPanel('new');
+  newPinBuffer = '';
+  avatarSel = AVATARS[0];
+  renderAvatarGrid();
+  updatePinDots('new-pin-dots', '');
+  document.getElementById('new-nome').value = '';
+}
+
+function backToSelect() {
+  showLoginPanel('select');
+  renderUserList();
+}
+
+function renderAvatarGrid() {
+  const el = document.getElementById('avatar-grid');
+  el.innerHTML = AVATARS.map(a =>
+    `<button class="avatar-btn ${a===avatarSel?'selected':''}" onclick="selAvatar('${a}')">${a}</button>`
+  ).join('');
+}
+
+function selAvatar(a) { avatarSel = a; renderAvatarGrid(); }
+
+function updatePinDots(elId, buf) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.querySelectorAll('.pin-dot').forEach((d, i) => {
+    d.classList.toggle('filled', i < buf.length);
+    d.classList.remove('error');
+  });
+}
+
+function pinKey(k) {
+  if (k === 'clear') pinBuffer = '';
+  else if (k === 'back') pinBuffer = pinBuffer.slice(0,-1);
+  else if (pinBuffer.length < 4) pinBuffer += k;
+  updatePinDots('pin-dots', pinBuffer);
+  document.getElementById('pin-error').textContent = '';
+  if (pinBuffer.length === 4) setTimeout(verificaPin, 120);
+}
+
+function newPinKey(k) {
+  if (k === 'clear') newPinBuffer = '';
+  else if (k === 'back') newPinBuffer = newPinBuffer.slice(0,-1);
+  else if (newPinBuffer.length < 4) newPinBuffer += k;
+  updatePinDots('new-pin-dots', newPinBuffer);
+}
+
+function selezionaUtente(id) {
+  const utenti = S.get('utenti', []);
+  const u = utenti.find(x => x.id === id);
+  if (!u) return;
+  pinTargetId = id;
+  document.getElementById('login-pin-avatar').textContent = u.avatar;
+  document.getElementById('login-pin-name').textContent   = u.nome;
+  pinBuffer = '';
+  updatePinDots('pin-dots', '');
+  document.getElementById('pin-error').textContent = '';
+  showLoginPanel('pin');
+}
+
+function verificaPin() {
+  const utenti = S.get('utenti', []);
+  const u = utenti.find(x => x.id === pinTargetId);
+  if (!u) return;
+  if (pinBuffer === u.pin) {
+    utenteCorrente = u;
+    S.set('utenteCorrente', u);
+    mostraApp();
+  } else {
+    document.getElementById('pin-dots').querySelectorAll('.pin-dot')
+      .forEach(d => d.classList.add('error'));
+    document.getElementById('pin-error').textContent = 'PIN errato, riprova';
+    pinBuffer = '';
+    setTimeout(() => updatePinDots('pin-dots', ''), 700);
+  }
+}
+
+function creaUtente() {
+  const nome = document.getElementById('new-nome').value.trim();
+  if (!nome) { toast('Inserisci il tuo nome!'); return; }
+  if (newPinBuffer.length !== 4) { toast('Inserisci un PIN di 4 cifre!'); return; }
+
+  const utenti = S.get('utenti', []);
+  
+  if (utenti.find(u => u.nome.toLowerCase() === nome.toLowerCase())) {
+    toast('❌ Esiste già un profilo con questo nome!'); return;
+  }
+
+  const id = makeUserId(nome, newPinBuffer);
+  const nuovoUtente = { id, nome, avatar: avatarSel, pin: newPinBuffer };
+  utenti.push(nuovoUtente);
+  S.set('utenti', utenti);
+
+  utenteCorrente = nuovoUtente;
+  S.set('utenteCorrente', nuovoUtente);
+
+  settings    = { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  giornate    = [];
+  storicoPaga = [];
+  salvaDatiUtente();
+  mostraApp();
+}
+
+
+function renderExistAvatarGrid() {
+  const el = document.getElementById('exist-avatar-grid');
+  if (!el) return;
+  el.innerHTML = AVATARS.map(a =>
+    `<button class="avatar-btn ${a===existAvatarSel?'selected':''}" onclick="selExistAvatar('${a}')">${a}</button>`
+  ).join('');
+}
+function selExistAvatar(a) { existAvatarSel = a; renderExistAvatarGrid(); }
+
+// ============================================================
+// SISTEMA INVITI
+// ============================================================
+function generaCodiceInvito(u) {
+  // Formato: NOME-PIN-ID  (tutto uppercase, facile da leggere)
+  const nome = u.nome.trim().toUpperCase().replace(/\s+/g, '');
+  const pin  = u.pin;
+  const id   = u.id;
+  return nome + '-' + pin + '-' + id;
+}
+
+function showCodiceInvito() {
+  showLoginPanel('invite');
+  document.getElementById('invite-code-input').value = '';
+  document.getElementById('invite-error').textContent = '';
+}
+
+function accediConCodice() {
+  const raw   = document.getElementById('invite-code-input').value.trim().toUpperCase();
+  const errEl = document.getElementById('invite-error');
+  if (!raw) { errEl.textContent = 'Inserisci il codice!'; return; }
+
+  // Parsing: NOME-PIN-ID
+  // Il formato è tutto ciò che precede i 4 numeri del PIN, poi l'ID
+  const parts = raw.split('-');
+  if (parts.length < 3) { errEl.textContent = 'Codice non valido.'; return; }
+
+  // L'ID è sempre l'ultima parte (es. u_8e9eft → U_8E9EFT dopo uppercase)
+  const idRaw  = parts[parts.length - 1].toLowerCase();
+  const pin    = parts[parts.length - 2];
+  const nome   = parts.slice(0, parts.length - 2).join(' ');
+
+  if (pin.length !== 4 || !/^[0-9]{4}$/.test(pin)) {
+    errEl.textContent = 'PIN nel codice non valido.'; return;
+  }
+
+  // Verifica che l'ID corrisponda a nome+pin
+  const expectedId = makeUserId(nome, pin);
+  // Accetta sia l'id dal codice che quello calcolato (per sicurezza)
+  const uid = idRaw.startsWith('u_') ? idRaw : expectedId;
+
+  // Salva il profilo localmente
+  const avatar = AVATARS[Math.abs(uid.charCodeAt(2)) % AVATARS.length];
+  const nomeDisplay = nome.charAt(0) + nome.slice(1).toLowerCase();
+  const nuovoUtente = { id: uid, nome: nomeDisplay, avatar, pin };
+
+  const utenti = S.get('utenti', []);
+  if (!utenti.find(u => u.id === uid)) {
+    utenti.push(nuovoUtente);
+    S.set('utenti', utenti);
+  }
+
+  utenteCorrente = nuovoUtente;
+  S.set('utenteCorrente', nuovoUtente);
+  giornate = []; settings = { nome: nomeDisplay, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  storicoPaga = [];
+  salvaDatiUtente();
+  mostraApp(); // pullFromSheets scarica i dati automaticamente
+}
+
+// In creaUtente: mostra il codice di invito dopo la creazione
+function mostraInvitoDopoCreazione(u) {
+  const codice = generaCodiceInvito(u);
+  const msg = '✅ Profilo creato!\n\nCodice di invito da mandare a ' + u.nome + ':\n\n' + codice + '\n\nCopialo e mandaglielo via WhatsApp!';
+  alert(msg);
+  // Copia automaticamente negli appunti
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(codice).catch(() => {});
+  }
+}
+
+function showAccediEsistente() {
+  showLoginPanel('existing');
+  existPinBuffer = '';
+  existAvatarSel = AVATARS[0];
+  renderExistAvatarGrid();
+  updatePinDots('exist-pin-dots', '');
+  document.getElementById('exist-nome').value = '';
+}
+
+function existPinKey(k) {
+  if (k === 'clear') existPinBuffer = '';
+  else if (k === 'back') existPinBuffer = existPinBuffer.slice(0,-1);
+  else if (existPinBuffer.length < 4) existPinBuffer += k;
+  updatePinDots('exist-pin-dots', existPinBuffer);
+}
+
+function accediEsistente() {
+  const nome = document.getElementById('exist-nome').value.trim();
+  if (!nome) { toast('Inserisci il tuo nome!'); return; }
+  if (existPinBuffer.length !== 4) { toast('Inserisci il PIN di 4 cifre!'); return; }
+
+  const id = makeUserId(nome, existPinBuffer);
+  const utenti = S.get('utenti', []);
+  let u = utenti.find(x => x.id === id);
+  
+  if (!u) {
+    if (utenti.find(x => x.nome.toLowerCase() === nome.toLowerCase())) {
+       toast('❌ PIN errato per questo profilo!'); return;
+    }
+    
+    u = { id, nome, avatar: '👤', pin: existPinBuffer };
+    utenti.push(u);
+    S.set('utenti', utenti);
+  }
+
+  utenteCorrente = u;
+  S.set('utenteCorrente', u);
+  giornate = []; settings = { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  storicoPaga = [];
+  salvaDatiUtente();
+  mostraApp(); 
+}
+
+function logout() {
+  if (!confirm('Vuoi uscire dal profilo?')) return;
+  S.set('utenteCorrente', null);
+  utenteCorrente = null;
+  giornate = []; settings = {}; storicoPaga = [];
+  mostraLogin();
+}
+
+// ============================================================
+// CLOUDFLARE WORKER SYNC
+// ============================================================
+
+let syncInProgress = false;
+
+function setSyncStatus(stato) {
+  const dot  = document.getElementById('sheets-status-dot');
+  const text = document.getElementById('sheets-status-text');
+  const bar  = document.getElementById('sync-bar');
+  if (!dot) return;
+  const cfgs = {
+    ok:      { dot:'var(--green)', text:'Connesso ✓' },
+    syncing: { dot:'var(--gold)',  text:'Sincronizzazione…' },
+    error:   { dot:'var(--red)',   text:'Errore sync' },
+    offline: { dot:'#bbb',        text:'Offline' },
+  };
+  const cfg = cfgs[stato] || cfgs.error;
+  dot.style.background = cfg.dot;
+  text.textContent     = cfg.text;
+  if (bar) {
+    if (stato === 'syncing') {
+      bar.textContent = '🔄 Sincronizzazione…';
+      bar.style.display = '';
+      bar.style.background = '#fdf9ee';
+      bar.style.color = 'var(--gold)';
+    } else if (stato === 'error') {
+      bar.textContent = '⚠️ Sync fallito';
+      bar.style.display = '';
+      bar.style.background = '#fde8e8';
+      bar.style.color = 'var(--red)';
+      setTimeout(function(){ bar.style.display='none'; }, 3000);
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+}
+
+function aggiornaUltimoSync() {
+  const el = document.getElementById('ultimo-sync');
+  if (!el) return;
+  const ts = S.get('ultimoSync', null);
+  if (!ts) { el.textContent = 'mai'; return; }
+  el.textContent = new Date(ts).toLocaleString('it-IT', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+}
+
 async function pushToSheets() {
   if (syncInProgress || !navigator.onLine) { setSyncStatus('offline'); return; }
   if (!utenteCorrente) return;
@@ -837,17 +2095,14 @@ async function pushToSheets() {
       setSyncStatus('ok');
       aggiornaUltimoSync();
     } else {
-      console.error('[Worker] push failed:', data);
       setSyncStatus('error');
     }
   } catch(err) {
-    console.error('[Worker] push error:', err.message);
     setSyncStatus('offline');
   } finally {
     syncInProgress = false;
   }
 }
-
 
 async function pullFromSheets() {
   if (!navigator.onLine) { setSyncStatus('offline'); return; }
@@ -855,22 +2110,21 @@ async function pullFromSheets() {
   setSyncStatus('syncing');
   try {
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 10000);
-    const resp = await fetch(WORKER_URL + '/api/utente/' + utenteCorrente.id, {
-      signal: controller.signal,
-    });
+    const tid = setTimeout(function(){ controller.abort(); }, 10000);
+    const resp = await fetch(WORKER_URL + '/api/utente/' + utenteCorrente.id, { signal: controller.signal });
     clearTimeout(tid);
-    if (!resp.ok) { console.error('[Worker] pull failed:', resp.status); setSyncStatus('error'); return; }
+    if (!resp.ok) { setSyncStatus('error'); return; }
     const json = await resp.json();
     const data = json.record;
     if (data) {
       const map = {};
-      giornate.forEach(g => { if (g.data) map[g.data] = g; });
-      (data.giornate || []).forEach(g => {
-        if (!g.data || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(g.data)) return;
+      giornate.forEach(function(g){ if (g.data) map[g.data] = g; });
+      (data.giornate || []).forEach(function(g){
+        if (!g.data) return;
+        if (!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(g.data)) return;
         if (!map[g.data] || (g.ts && g.ts > (map[g.data].ts||0))) map[g.data] = g;
       });
-      giornate = Object.values(map).sort((a,b) => a.data.localeCompare(b.data));
+      giornate = Object.values(map).sort(function(a,b){ return a.data.localeCompare(b.data); });
       if (data.settings) {
         settings = Object.assign({
           nome: utenteCorrente.nome, pagaOraria:0,
@@ -895,7 +2149,6 @@ async function pullFromSheets() {
   }
 }
 
-
 async function syncManuale() {
   toast('🔄 Sincronizzazione in corso…');
   await pullFromSheets();
@@ -903,9 +2156,9 @@ async function syncManuale() {
   toast('✅ Sincronizzazione completata!');
 }
 
-const _aggiungiOrig = aggiungiGiornata;
-window.addEventListener('online',  () => pushToSheets());
-window.addEventListener('offline', () => setSyncStatus('offline'));
+window.addEventListener('online',  function(){ pushToSheets(); });
+window.addEventListener('offline', function(){ setSyncStatus('offline'); });
+
 
 // ============================================================
 // ADMIN
@@ -952,25 +2205,20 @@ function verificaAdminPin() {
 }
 
 async function caricaUtentiDaSheets() {
-  const el     = document.getElementById('admin-utenti-list');
-  const lastEl = document.getElementById('admin-last-update');
-  el.innerHTML = '<div style="text-align:center;color:var(--brown-light);font-size:0.82rem;padding:16px;">⏳ Caricamento…</div>';
+  var el=document.getElementById('admin-utenti-list');
+  var lastEl=document.getElementById('admin-last-update');
+  el.innerHTML='<div style="text-align:center;padding:16px;">⏳ Caricamento…</div>';
   try {
-    const resp = await fetch(WORKER_URL + '/api/admin', {
-      headers: { 'X-API-Key': WORKER_API_KEY },
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
+    var resp=await fetch(WORKER_URL+'/api/admin',{headers:{'X-API-Key':WORKER_API_KEY}});
+    if (!resp.ok) throw new Error('HTTP '+resp.status);
+    var json=await resp.json();
     if (json.ok && json.utenti && json.utenti.length) {
-      lastEl.textContent = '☁️ Aggiornato · ' + new Date().toLocaleTimeString('it-IT');
-      renderAdminList(json.utenti, true);
-    } else {
-      throw new Error('Nessun dato');
-    }
+      lastEl.textContent='☁️ Aggiornato · '+new Date().toLocaleTimeString('it-IT');
+      renderAdminList(json.utenti,true);
+    } else { throw new Error('Nessun dato'); }
   } catch(err) {
-    const utenti = S.get('utenti', []);
-    lastEl.textContent = '📱 Dati locali (' + err.message + ')';
-    renderAdminList(utenti, false);
+    lastEl.textContent='📱 Dati locali ('+err.message+')';
+    renderAdminList(S.get('utenti',[]),false);
   }
 }
 
@@ -1001,11 +2249,41 @@ function renderAdminList(utenti, daSheets) {
           🗑 Elimina
         </button>
       </div>
-    </div>
-    `;
+    </div>`;
   }).join('');
 }
 
+function adminMostraCodice(uid, nome) {
+  const utenti = S.get('utenti', []);
+  const u = utenti.find(x => x.id === uid);
+  if (!u) { toast('Utente non trovato in locale'); return; }
+  const codice = generaCodiceInvito(u);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(codice)
+      .then(() => toast('📋 Codice copiato: ' + codice))
+      .catch(() => alert('Codice invito:\n' + codice));
+  } else {
+    alert('Codice invito per ' + nome + ':\n\n' + codice + '\n\nCopia e manda via WhatsApp!');
+  }
+}
+
+async function adminEliminaUtente(uid,nome) {
+  if (!confirm('Eliminare il profilo di "'+nome+'"?')) return;
+  toast('🗑 Eliminazione…');
+  try { await fetch(WORKER_URL+'/api/utente/'+uid,{method:'DELETE',headers:{'X-API-Key':WORKER_API_KEY}}); } catch(e) {}
+  S.set('utenti',S.get('utenti',[]).filter(function(u){return u.id!==uid;}));
+  localStorage.removeItem('giornate_'+uid);
+  localStorage.removeItem('settings_'+uid);
+  localStorage.removeItem('storicoPaga_'+uid);
+  if (utenteCorrente && utenteCorrente.id===uid) {
+    S.set('utenteCorrente',null); utenteCorrente=null; mostraLogin();
+  } else { toast('✅ Profilo eliminato'); caricaUtentiDaSheets(); }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+initLogin();
 </script>
 </body>
 </html>
