@@ -213,6 +213,7 @@
   .cal-day.has-ferie    { background:var(--green-pale); color:var(--green); border-color:var(--green-border); }
   .cal-day.has-malattia { background:var(--blue-pale); color:var(--blue); border-color:var(--blue-border); }
   .cal-day.has-permesso { background:var(--gold-pale); color:var(--gold); border-color:var(--gold-border); }
+  .cal-day.has-extra     { background:var(--gold-pale); color:var(--gold); border-color:var(--gold-border); }
   .cal-day.weekend      { opacity:0.55; }
   .cal-day-num { font-size:0.70rem; line-height:1; }
   .cal-day-dot { width:3px; height:3px; border-radius:50%; margin-top:1px; }
@@ -906,6 +907,7 @@ function pagaPerData(dataStr) {
 function calcolaGuadagno(g) {
   const p = pagaPerData(g.data);
   const mx = parseFloat(settings.moltiplicatoreExtra) || 1.5;
+  if (g.tipo === 'extra') return g.guadagnoPattuito != null ? parseFloat(g.guadagnoPattuito) || 0 : 0;
   if (g.tipo === 'ferie') return (g.sottotipo==='non_pagate') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
   if (g.tipo === 'permesso') return g.ore ? (parseFloat(g.ore)||0) * p : 0;
   if (g.tipo === 'malattia') return (g.sottotipo === 'non_pagata') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
@@ -1121,11 +1123,14 @@ function renderMese() {
 
   const del_mese = giornate.filter(g => g.data.startsWith(key));
   const lavoro   = del_mese.filter(g => (g.tipo||'lavoro')==='lavoro');
+  const extraG   = del_mese.filter(g => g.tipo==='extra');
   const ferie    = del_mese.filter(g => g.tipo==='ferie');
   const malattia = del_mese.filter(g => g.tipo==='malattia');
   const permesso = del_mese.filter(g => g.tipo==='permesso');
 
-  const totOre   = lavoro.reduce((s,g) => s+g.ore, 0);
+  // Le ore dei giorni "extra" si sommano alle ore totali del mese,
+  // ma il loro guadagno (calcolato sotto da calcolaGuadagno) usa il valore pattuito, non ore*tariffa.
+  const totOre   = lavoro.reduce((s,g) => s+g.ore, 0) + extraG.reduce((s,g) => s+(g.ore||0), 0);
   const totExtra = lavoro.reduce((s,g) => s+(g.extra||0), 0);
   const totGuad  = del_mese.reduce((s,g) => s+calcolaGuadagno(g), 0);
   const obiettivo= parseFloat(settings.obiettivoOre) || 0;
