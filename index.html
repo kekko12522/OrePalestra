@@ -1298,7 +1298,7 @@ function renderRiepilogo() {
       <div class="anno-label">Ferie usate</div>
     </div>
     <div class="anno-card">
-      <div class="anno-val">${lavAnno.length}</div>
+      <div class="anno-val">${lavAnno.length + extAnno.length}</div>
       <div class="anno-label">Giorni lavoro</div>
     </div>
     <div class="anno-card" style="border-color:var(--blue-border)">
@@ -1306,7 +1306,7 @@ function renderRiepilogo() {
       <div class="anno-label">Malattia</div>
     </div>
     <div class="anno-card">
-      <div class="anno-val">${lavAnno.length ? fmtOre(totOreA/lavAnno.length) : '—'}</div>
+      <div class="anno-val">${(lavAnno.length + extAnno.length) ? fmtOre(totOreA/(lavAnno.length + extAnno.length)) : '—'}</div>
       <div class="anno-label">Media/giorno</div>
     </div>
   `;
@@ -1342,7 +1342,7 @@ function renderRiepilogo() {
       <div>
         <div class="month-row-label">${label}</div>
         <div class="month-row-sub">
-          <span>${lav.length} giorni · ${fmtOre(totOre)}</span>
+          <span>${lav.length + ext.length} giorni · ${fmtOre(totOre)}</span>
           ${badges}
         </div>
       </div>
@@ -1358,7 +1358,8 @@ function renderGraficoAnno(y) {
   const dati = MESI_SHORT.map((_, mi) => {
     const k = chiaveM(y, mi);
     const lav = giornate.filter(g => g.data.startsWith(k) && (g.tipo||'lavoro')==='lavoro');
-    return lav.reduce((s,g) => s+g.ore+(g.extra||0), 0);
+    const ext = giornate.filter(g => g.data.startsWith(k) && g.tipo==='extra');
+    return lav.reduce((s,g) => s+g.ore+(g.extra||0), 0) + ext.reduce((s,g) => s+(g.ore||0), 0);
   });
   const maxOre = Math.max(...dati, 1);
   const nowM = new Date().getMonth();
