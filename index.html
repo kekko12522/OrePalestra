@@ -1148,7 +1148,7 @@ function renderMese() {
       <div class="stat-label">Guadagno</div>
     </div>
     <div class="stat-card">
-      <div class="stat-value">${lavoro.length}</div>
+      <div class="stat-value">${lavoro.length + extraG.length}</div>
       <div class="stat-label">Giorni lavoro</div>
     </div>
     <div class="stat-card gold">
@@ -1276,9 +1276,10 @@ function renderRiepilogo() {
 
   const delAnno = giornate.filter(g => g.data.startsWith(String(annoCorr)));
   const lavAnno  = delAnno.filter(g => (g.tipo||'lavoro')==='lavoro');
+  const extAnno  = delAnno.filter(g => g.tipo==='extra');
   const ferAnno  = delAnno.filter(g => g.tipo==='ferie');
   const malAnno  = delAnno.filter(g => g.tipo==='malattia');
-  const totOreA  = lavAnno.reduce((s,g) => s+g.ore+(g.extra||0), 0);
+  const totOreA  = lavAnno.reduce((s,g) => s+g.ore+(g.extra||0), 0) + extAnno.reduce((s,g) => s+(g.ore||0), 0);
   const totGuadA = delAnno.reduce((s,g) => s+calcolaGuadagno(g), 0);
   const ferUsate = ferAnno.length;
   const ferTot   = parseInt(settings.ferieAnnuali) || 0;
@@ -1326,10 +1327,11 @@ function renderRiepilogo() {
     const [y2, m2] = k.split('-');
     const label = MESI[parseInt(m2)-1] + ' ' + y2;
     const lav = list.filter(g=>(g.tipo||'lavoro')==='lavoro');
+    const ext = list.filter(g=>g.tipo==='extra');
     const fer = list.filter(g=>g.tipo==='ferie').length;
     const mal = list.filter(g=>g.tipo==='malattia').length;
     const per = list.filter(g=>g.tipo==='permesso').length;
-    const totOre  = lav.reduce((s,g)=>s+g.ore+(g.extra||0),0);
+    const totOre  = lav.reduce((s,g)=>s+g.ore+(g.extra||0),0) + ext.reduce((s,g)=>s+(g.ore||0),0);
     const totGuad = list.reduce((s,g)=>s+calcolaGuadagno(g),0);
     const badges = [
       fer ? `<span class="month-badge badge-ferie">🌴 ${fer}g</span>` : '',
