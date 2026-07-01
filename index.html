@@ -490,14 +490,13 @@
         <button class="pin-key pin-key-ghost" onclick="existPinKey('back')">⌫</button>
       </div>
       <button class="btn btn-primary" onclick="accediEsistente()">🔑 Accedi</button>
+      <div id="exist-error" style="color:var(--red);font-size:0.78rem;margin-top:10px;min-height:18px;text-align:center;"></div>
     </div>
-
-    <!-- ADMIN PRE-LOGIN -->
     <div id="login-admin-panel" style="display:none;">
       <button onclick="backToSelect()" style="background:none;border:none;color:var(--brown-light);font-size:0.82rem;cursor:pointer;margin-bottom:16px;">← Indietro</button>
       <div style="font-family:'Playfair Display',serif;font-size:1.2rem;color:var(--rose-deep);margin-bottom:8px;text-align:center;">⚙️ Pannello Admin</div>
       <div id="admin-auth-view">
-        <div style="font-size:0.78rem;color:var(--brown-light);text-align:center;margin-bottom:16px;">Inserisci il PIN admin per vedere tutti i profili e i loro dati su Sheets.</div>
+        <div style="font-size:0.78rem;color:var(--brown-light);text-align:center;margin-bottom:16px;">Inserisci il PIN admin per gestire i profili.</div>
         <div id="admin-pin-dots" style="display:flex;justify-content:center;gap:12px;margin-bottom:20px;">
           <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
         </div>
@@ -517,10 +516,65 @@
           <button class="pin-key pin-key-ghost" onclick="adminPinKey('back')">⌫</button>
         </div>
       </div>
-      <div id="admin-panel-view" style="display:none;margin-top:16px;">
-        <div style="font-size:0.75rem;color:var(--brown-light);margin-bottom:10px;">Profili su Google Sheets:</div>
+
+      <!-- PANNELLO ADMIN SBLOCCATO -->
+      <div id="admin-panel-view" style="display:none;margin-top:8px;">
+        <!-- Barra ricerca + pulsante nuovo -->
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input type="search" id="admin-search" placeholder="🔍 Cerca profilo…" oninput="adminFiltroLista()"
+            style="flex:1;padding:9px 12px;border:1.5px solid var(--rose-border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.82rem;color:var(--brown);background:var(--rose-pale);">
+          <button class="btn btn-primary" style="padding:9px 14px;font-size:0.8rem;white-space:nowrap;" onclick="adminApriForm(null)">+ Nuovo</button>
+        </div>
+
+        <!-- Lista profili -->
         <div id="admin-utenti-list" style="display:flex;flex-direction:column;gap:8px;"></div>
         <div style="margin-top:14px;font-size:0.7rem;color:var(--brown-light);text-align:center;" id="admin-last-update"></div>
+
+        <!-- FORM CREA/MODIFICA -->
+        <div id="admin-form-wrap" style="display:none;margin-top:16px;background:var(--rose-pale);border:1.5px solid var(--rose-border);border-radius:14px;padding:16px;">
+          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--rose-deep);margin-bottom:14px;" id="admin-form-title">Nuovo profilo</div>
+
+          <label>Nome</label>
+          <input type="text" id="admin-f-nome" placeholder="es. Martina">
+
+          <label style="margin-top:10px;">PIN (4 cifre)</label>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+            <input type="text" id="admin-f-pin" inputmode="numeric" maxlength="4" pattern="[0-9]*"
+              placeholder="••••" style="letter-spacing:0.3em;font-size:1.1rem;width:100px;text-align:center;">
+            <button type="button" class="btn btn-ghost" style="padding:6px 10px;font-size:0.75rem;" onclick="adminTogglePinVisibility()">👁</button>
+          </div>
+          <div id="admin-f-pin-err" style="color:var(--red);font-size:0.75rem;min-height:16px;margin-bottom:8px;"></div>
+
+          <label style="margin-top:6px;">Avatar</label>
+          <div id="admin-emoji-picker" style="display:flex;flex-wrap:wrap;gap:7px;margin-top:6px;margin-bottom:12px;"></div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+            <span style="font-size:0.8rem;color:var(--brown-light);">Oppure scrivi un'emoji:</span>
+            <input type="text" id="admin-f-avatar-custom" placeholder="🌺" maxlength="2"
+              style="width:52px;text-align:center;font-size:1.2rem;padding:6px;border:1.5px solid var(--rose-border);border-radius:8px;"
+              oninput="adminSyncAvatarCustom(this.value)">
+          </div>
+
+          <div id="admin-form-err" style="color:var(--red);font-size:0.78rem;min-height:18px;margin-bottom:8px;text-align:center;"></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" style="flex:1;" onclick="adminChiudiForm()">Annulla</button>
+            <button class="btn btn-primary" style="flex:2;" id="admin-f-save-btn" onclick="adminSalvaProfilo()">
+              <span id="admin-f-save-label">✅ Salva profilo</span>
+              <span id="admin-f-spinner" style="display:none;">⏳</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODALE CONFERMA ELIMINA -->
+    <div id="admin-delete-modal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(60,20,30,0.45);display:none;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:white;border-radius:18px;padding:24px 22px;max-width:320px;width:100%;box-shadow:var(--shadow);">
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;color:var(--red);margin-bottom:10px;">🗑 Elimina profilo</div>
+        <div style="font-size:0.88rem;color:var(--brown);margin-bottom:20px;" id="admin-delete-msg">Sei sicuro?</div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" style="flex:1;" onclick="adminChiudiDeleteModal()">Annulla</button>
+          <button class="btn btn-danger" style="flex:1;" id="admin-delete-confirm-btn" onclick="adminConfermaElimina()">Elimina</button>
+        </div>
       </div>
     </div>
 
@@ -2109,23 +2163,67 @@ function existPinKey(k) {
   updatePinDots('exist-pin-dots', existPinBuffer);
 }
 
-function accediEsistente() {
+async function accediEsistente() {
   const nome = document.getElementById('exist-nome').value.trim();
   if (!nome) { toast('Inserisci il tuo nome!'); return; }
   if (existPinBuffer.length !== 4) { toast('Inserisci il PIN di 4 cifre!'); return; }
 
   const id = makeUserId(nome, existPinBuffer);
-  const utenti = S.get('utenti', []);
-  let u = utenti.find(x => x.id === id);
-  
-  if (!u) {
-    if (utenti.find(x => x.nome.toLowerCase() === nome.toLowerCase())) {
-       toast('❌ PIN errato per questo profilo!'); return;
+
+  // Spinner / blocca pulsante
+  const btn = document.querySelector('#login-existing-panel .btn-primary');
+  const oldTxt = btn ? btn.textContent : '';
+  if (btn) { btn.textContent = '⏳ Verifica…'; btn.disabled = true; }
+
+  let trovato = false;
+
+  // 1) Cerca prima localmente (offline-first)
+  const locali = S.get('utenti', []);
+  if (locali.find(u => u.id === id)) {
+    trovato = true;
+  }
+
+  // 2) Se non trovato in locale, chiedi al Worker
+  if (!trovato) {
+    try {
+      const resp = await fetch(WORKER_URL + '/api/utente/' + id, {
+        signal: AbortSignal.timeout(5000)
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        // Il Worker restituisce i dati se esiste (qualunque struttura non-error)
+        if (json && !json.error) trovato = true;
+      }
+    } catch(e) { /* rete assente — si tiene la risposta locale */ }
+  }
+
+  if (btn) { btn.textContent = oldTxt; btn.disabled = false; }
+
+  if (!trovato) {
+    // Mostra errore chiaramente
+    const errEl = document.getElementById('exist-error');
+    if (errEl) {
+      errEl.textContent = '❌ Account non registrato o credenziali errate. Contatta l\'amministratore.';
+    } else {
+      toast('❌ Account non registrato. Contatta l\'amministratore.');
     }
-    
+    // Shake sui pallini
+    document.getElementById('exist-pin-dots').querySelectorAll('.pin-dot').forEach(d => d.classList.add('error'));
+    existPinBuffer = '';
+    setTimeout(() => {
+      updatePinDots('exist-pin-dots', '');
+      if (errEl) errEl.textContent = '';
+    }, 2500);
+    return;
+  }
+
+  // Accesso consentito
+  let u = locali.find(x => x.id === id);
+  if (!u) {
+    // Prima volta su questo dispositivo — recupera dati dal Worker
     u = { id, nome, avatar: '👤', pin: existPinBuffer };
-    utenti.push(u);
-    S.set('utenti', utenti);
+    locali.push(u);
+    S.set('utenti', locali);
   }
 
   utenteCorrente = u;
@@ -2133,7 +2231,7 @@ function accediEsistente() {
   giornate = []; settings = { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
   storicoPaga = [];
   salvaDatiUtente();
-  mostraApp(); 
+  mostraApp();
 }
 
 function logout() {
@@ -2303,11 +2401,23 @@ function adminPinKey(k) {
   if (adminPinBuffer.length === 4) setTimeout(verificaAdminPin, 120);
 }
 
+
+// ============================================================
+// ADMIN PANEL — CRUD COMPLETO
+// ============================================================
+
+let adminUtenteInEditing = null;  // null = nuovo, id = modifica
+let adminUtentiCache     = [];    // lista caricata dal Worker
+let adminAvatarSel       = AVATARS[0];
+let adminDeleteTargetId  = null;
+let adminDeleteTargetNome = '';
+let adminPinVisible      = false;
+
 function verificaAdminPin() {
   if (adminPinBuffer === ADMIN_PIN) {
     document.getElementById('admin-auth-view').style.display = 'none';
     document.getElementById('admin-panel-view').style.display = '';
-    caricaUtentiDaSheets();
+    caricaUtentiAdmin();
   } else {
     document.getElementById('admin-pin-dots').querySelectorAll('.pin-dot')
       .forEach(d => d.classList.add('error'));
@@ -2317,53 +2427,265 @@ function verificaAdminPin() {
   }
 }
 
-async function caricaUtentiDaSheets() {
-  var el=document.getElementById('admin-utenti-list');
-  var lastEl=document.getElementById('admin-last-update');
-  el.innerHTML='<div style="text-align:center;padding:16px;">⏳ Caricamento…</div>';
+async function caricaUtentiAdmin() {
+  const el     = document.getElementById('admin-utenti-list');
+  const lastEl = document.getElementById('admin-last-update');
+  el.innerHTML = '<div style="text-align:center;padding:18px;color:var(--brown-light);">⏳ Caricamento…</div>';
   try {
-    var resp=await fetch(WORKER_URL+'/api/admin',{headers:{'X-API-Key':WORKER_API_KEY}});
-    if (!resp.ok) throw new Error('HTTP '+resp.status);
-    var json=await resp.json();
-    if (json.ok && json.utenti && json.utenti.length) {
-      lastEl.textContent='☁️ Aggiornato · '+new Date().toLocaleTimeString('it-IT');
-      renderAdminList(json.utenti,true);
+    const resp = await fetch(WORKER_URL + '/api/admin', { headers: { 'X-API-Key': WORKER_API_KEY } });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+    if (json.ok && json.utenti) {
+      adminUtentiCache = json.utenti;
+      lastEl.textContent = '☁️ Aggiornato · ' + new Date().toLocaleTimeString('it-IT');
     } else { throw new Error('Nessun dato'); }
   } catch(err) {
-    lastEl.textContent='📱 Dati locali ('+err.message+')';
-    renderAdminList(S.get('utenti',[]),false);
+    // Fallback locale
+    adminUtentiCache = S.get('utenti', []);
+    lastEl.textContent = '📱 Dati locali (' + err.message + ')';
   }
+  adminRenderLista(adminUtentiCache);
 }
 
+function adminFiltroLista() {
+  const q = (document.getElementById('admin-search').value || '').toLowerCase();
+  const filtrati = q ? adminUtentiCache.filter(u => (u.nome||'').toLowerCase().includes(q)) : adminUtentiCache;
+  adminRenderLista(filtrati);
+}
 
-function renderAdminList(utenti, daSheets) {
+function adminRenderLista(utenti) {
   const el = document.getElementById('admin-utenti-list');
+  if (!utenti.length) {
+    el.innerHTML = '<div style="text-align:center;color:var(--brown-light);font-size:0.82rem;padding:14px;">Nessun profilo trovato.</div>';
+    return;
+  }
   el.innerHTML = utenti.map(u => {
     const nome = u.nome || '—';
     const id   = u.id   || '—';
-    const ore  = u.totOre || '—';
-    return `
-    <div style="background:var(--rose-pale);border:1px solid var(--rose-border);border-radius:12px;padding:12px 14px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-weight:600;font-size:0.9rem;color:var(--brown)">${u.avatar||'👤'} ${nome}</div>
-          <div style="font-size:0.68rem;color:var(--brown-light);margin-top:2px;">ID: ${id}</div>
+    const ore  = u.totOre != null ? fmtOre(u.totOre) : '—';
+    return `<div style="background:white;border:1.5px solid var(--rose-border);border-radius:12px;padding:12px 14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+          <span style="font-size:1.4rem;flex-shrink:0;">${u.avatar||'👤'}</span>
+          <div style="min-width:0;">
+            <div style="font-weight:600;font-size:0.9rem;color:var(--brown);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nome}</div>
+            <div style="font-size:0.65rem;color:var(--brown-light);margin-top:1px;">ID: ${id}</div>
+          </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--rose-deep)">${ore}</div>
-          ${daSheets ? '' : '<div style="font-size:0.65rem;color:var(--brown-light)">(locale)</div>'}
-        </div>
+        <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--rose-deep);flex-shrink:0;">${ore}</div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;">
-        <button class="btn btn-ghost" style="flex:1;font-size:0.75rem;padding:7px;" onclick="adminMostraCodice('${id}','${nome}')">
-          🔗 Codice invito
-        </button>
-        <button class="btn btn-ghost" style="flex:1;font-size:0.75rem;padding:7px;color:var(--red);border-color:var(--red-pale);" onclick="adminEliminaUtente('${id}','${nome}')">
-          🗑 Elimina
-        </button>
+        <button class="btn btn-ghost" style="flex:1;font-size:0.72rem;padding:7px;" onclick="adminApriForm('${id}')">✏️ Modifica</button>
+        <button class="btn btn-ghost" style="flex:1;font-size:0.72rem;padding:7px;" onclick="adminMostraCodice('${id}','${nome}')">🔗 Invito</button>
+        <button class="btn btn-ghost" style="flex:1;font-size:0.72rem;padding:7px;color:var(--red);border-color:#f2d0d0;" onclick="adminApriDeleteModal('${id}','${nome}')">🗑</button>
       </div>
     </div>`;
   }).join('');
+}
+
+// ---- FORM CREA / MODIFICA ----
+function adminApriForm(uid) {
+  adminChiudiForm(); // reset
+  adminUtenteInEditing = uid;
+  const wrap = document.getElementById('admin-form-wrap');
+  const title = document.getElementById('admin-form-title');
+  const errEl = document.getElementById('admin-form-err');
+  errEl.textContent = '';
+  document.getElementById('admin-f-pin-err').textContent = '';
+  adminPinVisible = false;
+  document.getElementById('admin-f-pin').type = 'password';
+
+  if (uid) {
+    // Modifica — carica dati esistenti
+    const u = adminUtentiCache.find(x => x.id === uid) || S.get('utenti',[]).find(x => x.id === uid);
+    title.textContent = '✏️ Modifica profilo';
+    document.getElementById('admin-f-nome').value = u ? u.nome : '';
+    document.getElementById('admin-f-pin').value  = u && u.pin ? u.pin : '';
+    adminAvatarSel = (u && u.avatar) ? u.avatar : AVATARS[0];
+    document.getElementById('admin-f-avatar-custom').value = adminAvatarSel;
+  } else {
+    title.textContent = '✨ Nuovo profilo';
+    document.getElementById('admin-f-nome').value = '';
+    document.getElementById('admin-f-pin').value  = '';
+    adminAvatarSel = AVATARS[0];
+    document.getElementById('admin-f-avatar-custom').value = '';
+  }
+  document.getElementById('admin-f-save-label').textContent = uid ? '✅ Aggiorna' : '✅ Crea profilo';
+  adminRenderEmojiPicker();
+  wrap.style.display = '';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function adminChiudiForm() {
+  document.getElementById('admin-form-wrap').style.display = 'none';
+  adminUtenteInEditing = null;
+}
+
+function adminRenderEmojiPicker() {
+  const el = document.getElementById('admin-emoji-picker');
+  el.innerHTML = AVATARS.map(a =>
+    `<button type="button" onclick="adminSelAvatar('${a}')"
+      style="font-size:1.35rem;padding:5px 8px;border-radius:10px;border:2px solid ${a===adminAvatarSel?'var(--rose-deep)':'transparent'};background:${a===adminAvatarSel?'var(--rose-pale)':'transparent'};cursor:pointer;transition:all 0.12s;">${a}</button>`
+  ).join('');
+}
+
+function adminSelAvatar(a) {
+  adminAvatarSel = a;
+  document.getElementById('admin-f-avatar-custom').value = a;
+  adminRenderEmojiPicker();
+}
+
+function adminSyncAvatarCustom(v) {
+  if (v) { adminAvatarSel = v; adminRenderEmojiPicker(); }
+}
+
+function adminTogglePinVisibility() {
+  adminPinVisible = !adminPinVisible;
+  document.getElementById('admin-f-pin').type = adminPinVisible ? 'text' : 'password';
+}
+
+async function adminSalvaProfilo() {
+  const saveBtn   = document.getElementById('admin-f-save-btn');
+  const label     = document.getElementById('admin-f-save-label');
+  const spinner   = document.getElementById('admin-f-spinner');
+  const errEl     = document.getElementById('admin-form-err');
+  const pinErrEl  = document.getElementById('admin-f-pin-err');
+
+  const nome      = (document.getElementById('admin-f-nome').value || '').trim();
+  const pin       = (document.getElementById('admin-f-pin').value || '').trim();
+  const avatar    = document.getElementById('admin-f-avatar-custom').value || adminAvatarSel || '👤';
+
+  errEl.textContent = '';
+  pinErrEl.textContent = '';
+
+  // Validazioni
+  if (!nome) { errEl.textContent = 'Il nome è obbligatorio.'; return; }
+  if (!/^\d{4}$/.test(pin)) { pinErrEl.textContent = 'Il PIN deve essere di esattamente 4 cifre.'; return; }
+
+  const nuovoId = makeUserId(nome, pin);
+
+  // Controllo duplicati PIN (solo su creazione o se cambio id)
+  if (!adminUtenteInEditing || nuovoId !== adminUtenteInEditing) {
+    const esistente = adminUtentiCache.find(u => u.id === nuovoId);
+    if (esistente && esistente.id !== adminUtenteInEditing) {
+      errEl.textContent = 'Esiste già un profilo con questo nome e PIN. Scegli un PIN diverso.';
+      return;
+    }
+  }
+
+  // Spinner on
+  saveBtn.disabled = true;
+  label.style.display  = 'none';
+  spinner.style.display = '';
+
+  const payload = { nome, pin, avatar, id: nuovoId };
+
+  try {
+    if (adminUtenteInEditing) {
+      // MODIFICA — se l'id cambia, elimina il vecchio e crea il nuovo
+      if (nuovoId !== adminUtenteInEditing) {
+        // Trasferisci i dati utente dal vecchio al nuovo ID
+        const giornateVecchie  = S.get('giornate_' + adminUtenteInEditing, []);
+        const settingsVecchie  = S.get('settings_' + adminUtenteInEditing, {});
+        const storicoVecchio   = S.get('storicoPaga_' + adminUtenteInEditing, []);
+        S.set('giornate_'    + nuovoId, giornateVecchie);
+        S.set('settings_'    + nuovoId, Object.assign({}, settingsVecchie, { nome }));
+        S.set('storicoPaga_' + nuovoId, storicoVecchio);
+        // Elimina vecchio da Worker
+        try { await fetch(WORKER_URL+'/api/utente/'+adminUtenteInEditing, { method:'DELETE', headers:{'X-API-Key':WORKER_API_KEY} }); } catch(e){}
+      }
+      // Aggiorna localmente
+      let utenti = S.get('utenti', []);
+      utenti = utenti.map(u => u.id === adminUtenteInEditing ? { ...u, ...payload } : u);
+      if (!utenti.find(u => u.id === nuovoId)) utenti.push(payload);
+      S.set('utenti', utenti);
+      // Salva su Worker (nuovi dati giornate)
+      try {
+        const dati = {
+          settings: Object.assign(S.get('settings_'+nuovoId, {}), { nome }),
+          giornate: S.get('giornate_'+nuovoId, []),
+          storicoPaga: S.get('storicoPaga_'+nuovoId, []),
+          nome, avatar, pin
+        };
+        await fetch(WORKER_URL+'/api/utente/'+nuovoId, {
+          method:'POST', headers:{'Content-Type':'application/json','X-API-Key':WORKER_API_KEY},
+          body: JSON.stringify(dati)
+        });
+      } catch(e){}
+      toast('✅ Profilo aggiornato!');
+    } else {
+      // CREAZIONE NUOVO
+      let utenti = S.get('utenti', []);
+      if (!utenti.find(u => u.id === nuovoId)) { utenti.push(payload); S.set('utenti', utenti); }
+      S.set('settings_' + nuovoId, { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
+      // Salva su Worker
+      try {
+        await fetch(WORKER_URL+'/api/utente/'+nuovoId, {
+          method:'POST', headers:{'Content-Type':'application/json','X-API-Key':WORKER_API_KEY},
+          body: JSON.stringify({ settings:{ nome }, giornate:[], storicoPaga:[], nome, avatar, pin })
+        });
+      } catch(e){}
+      toast('🌸 Profilo creato!');
+      // Genera e mostra codice invito
+      setTimeout(() => {
+        const codice = generaCodiceInvito(payload);
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(codice).catch(()=>{});
+        }
+        alert('✅ Profilo creato per ' + nome + '!\n\nCodice di invito:\n' + codice + '\n\nCopialo e mandalo via WhatsApp!');
+      }, 200);
+    }
+  } catch(err) {
+    errEl.textContent = 'Errore: ' + err.message;
+  } finally {
+    saveBtn.disabled = false;
+    label.style.display  = '';
+    spinner.style.display = 'none';
+  }
+
+  adminChiudiForm();
+  await caricaUtentiAdmin();
+}
+
+// ---- MODALE ELIMINA ----
+function adminApriDeleteModal(uid, nome) {
+  adminDeleteTargetId   = uid;
+  adminDeleteTargetNome = nome;
+  const modal = document.getElementById('admin-delete-modal');
+  document.getElementById('admin-delete-msg').textContent =
+    'Vuoi eliminare il profilo di "' + nome + '"? Questa azione è irreversibile.';
+  modal.style.display = 'flex';
+}
+
+function adminChiudiDeleteModal() {
+  document.getElementById('admin-delete-modal').style.display = 'none';
+  adminDeleteTargetId = null;
+  adminDeleteTargetNome = '';
+}
+
+async function adminConfermaElimina() {
+  const uid  = adminDeleteTargetId;
+  const nome = adminDeleteTargetNome;
+  if (!uid) return;
+  const btn = document.getElementById('admin-delete-confirm-btn');
+  btn.textContent = '⏳';
+  btn.disabled = true;
+  try { await fetch(WORKER_URL+'/api/utente/'+uid, { method:'DELETE', headers:{'X-API-Key':WORKER_API_KEY} }); } catch(e){}
+  S.set('utenti', S.get('utenti',[]).filter(u => u.id !== uid));
+  localStorage.removeItem('giornate_'+uid);
+  localStorage.removeItem('settings_'+uid);
+  localStorage.removeItem('storicoPaga_'+uid);
+  if (utenteCorrente && utenteCorrente.id === uid) {
+    S.set('utenteCorrente', null); utenteCorrente = null;
+    adminChiudiDeleteModal();
+    mostraLogin();
+    return;
+  }
+  btn.textContent = 'Elimina';
+  btn.disabled = false;
+  adminChiudiDeleteModal();
+  toast('🗑 Profilo "' + nome + '" eliminato');
+  await caricaUtentiAdmin();
 }
 
 function adminMostraCodice(uid, nome) {
@@ -2378,19 +2700,6 @@ function adminMostraCodice(uid, nome) {
   } else {
     alert('Codice invito per ' + nome + ':\n\n' + codice + '\n\nCopia e manda via WhatsApp!');
   }
-}
-
-async function adminEliminaUtente(uid,nome) {
-  if (!confirm('Eliminare il profilo di "'+nome+'"?')) return;
-  toast('🗑 Eliminazione…');
-  try { await fetch(WORKER_URL+'/api/utente/'+uid,{method:'DELETE',headers:{'X-API-Key':WORKER_API_KEY}}); } catch(e) {}
-  S.set('utenti',S.get('utenti',[]).filter(function(u){return u.id!==uid;}));
-  localStorage.removeItem('giornate_'+uid);
-  localStorage.removeItem('settings_'+uid);
-  localStorage.removeItem('storicoPaga_'+uid);
-  if (utenteCorrente && utenteCorrente.id===uid) {
-    S.set('utenteCorrente',null); utenteCorrente=null; mostraLogin();
-  } else { toast('✅ Profilo eliminato'); caricaUtentiDaSheets(); }
 }
 
 // ============================================================
