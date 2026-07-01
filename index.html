@@ -424,6 +424,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.5.2</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -586,7 +587,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸</h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.5.2</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -859,6 +860,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
+const APP_VERSION = '0.5.2';
 
 
 // ============================================================
@@ -2134,6 +2136,7 @@ async function accediEsistente() {
   if (btn) { btn.textContent = '⏳ Verifica…'; btn.disabled = true; }
 
   let trovato = false;
+  let datiRemoti = null;
 
   // 1) Cerca prima localmente (offline-first)
   const locali = S.get('utenti', []);
@@ -2141,18 +2144,23 @@ async function accediEsistente() {
     trovato = true;
   }
 
-  // 2) Se non trovato in locale, chiedi al Worker
+  // 2) Se non trovato in locale, verifica sulla lista AUTORITATIVA del Worker (/api/admin).
+  //    NB: NON usiamo GET /api/utente/:id per la verifica, perché il Worker risponde 200
+  //    con un oggetto vuoto/default anche per ID inesistenti (falso positivo).
   if (!trovato) {
     try {
-      const resp = await fetch(WORKER_URL + '/api/utente/' + id, {
-        signal: AbortSignal.timeout(5000)
+      const resp = await fetch(WORKER_URL + '/api/admin', {
+        headers: { 'X-API-Key': WORKER_API_KEY },
+        signal: AbortSignal.timeout(6000)
       });
       if (resp.ok) {
         const json = await resp.json();
-        // Il Worker restituisce i dati se esiste (qualunque struttura non-error)
-        if (json && !json.error) trovato = true;
+        if (json && json.ok && Array.isArray(json.utenti)) {
+          const match = json.utenti.find(u => u.id === id);
+          if (match) { trovato = true; datiRemoti = match; }
+        }
       }
-    } catch(e) { /* rete assente — si tiene la risposta locale */ }
+    } catch(e) { /* rete assente — resta il solo risultato locale */ }
   }
 
   if (btn) { btn.textContent = oldTxt; btn.disabled = false; }
@@ -2178,8 +2186,10 @@ async function accediEsistente() {
   // Accesso consentito
   let u = locali.find(x => x.id === id);
   if (!u) {
-    // Prima volta su questo dispositivo — recupera dati dal Worker
-    u = { id, nome, avatar: '👤', pin: existPinBuffer };
+    // Prima volta su questo dispositivo — usa i dati trovati sul Worker (autoritativi)
+    u = datiRemoti
+      ? { id, nome: datiRemoti.nome || nome, avatar: datiRemoti.avatar || '👤', pin: existPinBuffer }
+      : { id, nome, avatar: '👤', pin: existPinBuffer };
     locali.push(u);
     S.set('utenti', locali);
   }
@@ -2663,6 +2673,7 @@ function adminMostraCodice(uid, nome) {
 // ============================================================
 // INIT
 // ============================================================
+document.querySelectorAll('.app-version-badge, #version-badge-login').forEach(function(el){ el.textContent = 'v' + APP_VERSION; });
 initLogin();
 </script>
 </body>
