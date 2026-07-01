@@ -1646,7 +1646,7 @@ function apriStampa() {
   const totGuad  = del_mese.reduce((s,g)=>s+calcolaGuadagno(g),0);
   const pagaBase = parseFloat(settings.pagaOraria)||0;
   const mx       = parseFloat(settings.moltiplicatoreExtra)||1.5;
-  const nome     = settings.nome||'';
+  const nome     = settings.nome || (utenteCorrente ? utenteCorrente.nome : '') || '';
   const giorni   = lavoro.length + extraG.length;
   const mediaOre = giorni ? totOreComplessive/giorni : 0;
   const generato = new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
@@ -1883,8 +1883,11 @@ function renderUserList() {
   el.innerHTML = utenti.map(u => {
     const g = S.get('giornate_' + u.id, []);
     const mese = new Date().toISOString().slice(0,7);
-    const oreMese = g.filter(x => x.data.startsWith(mese) && (x.tipo||'lavoro')==='lavoro')
-                     .reduce((s,x) => s + x.ore + (x.extra||0), 0);
+    const delMese = g.filter(x => x.data.startsWith(mese));
+    const oreMese = delMese.filter(x => (x.tipo||'lavoro')==='lavoro')
+                     .reduce((s,x) => s + (x.ore||0) + (x.extra||0), 0)
+                   + delMese.filter(x => x.tipo==='extra')
+                     .reduce((s,x) => s + (x.ore||0), 0);
     return `<div class="user-card" onclick="selezionaUtente('${u.id}')">
       <div class="user-avatar">${u.avatar}</div>
       <div>
@@ -2134,31 +2137,8 @@ function accediEsistente() {
 }
 
 function logout() {
-  // Calcola il totale ore del mese corrente, comprensivo delle ore di bonus/straordinario
-  // e delle giornate "extra", per mostrare un riepilogo coerente con header e riepilogo annuale.
-  const now = new Date();
-  const keyMese = chiaveM(now.getFullYear(), now.getMonth());
-  const delMeseCorr = giornate.filter(g => g.data.startsWith(keyMese));
-  const lavoroCorr  = delMeseCorr.filter(g => (g.tipo||'lavoro')==='lavoro');
-  const extraCorr   = delMeseCorr.filter(g => g.tipo==='extra');
-  const totOreBase   = lavoroCorr.reduce((s,g) => s + (g.ore||0), 0);
-  const totOreBonus  = lavoroCorr.reduce((s,g) => s + (g.extra||0), 0);
-  const totOreExtraG = extraCorr.reduce((s,g) => s + (g.ore||0), 0);
-  const totOreComplessive = totOreBase + totOreBonus + totOreExtraG;
-
-  const nome = settings.nome ? settings.nome + ', vuoi' : 'Vuoi';
-  const riepilogoMsg = totOreComplessive
-    ? `${nome} uscire dal profilo?\n\nQuesto mese (${MESI[now.getMonth()]}): ${fmtOre(totOreComplessive)} totali` +
-      (totOreBonus ? ` (di cui ${fmtOre(totOreBonus)} di bonus)` : '')
-    : `${nome} uscire dal profilo?`;
-
-  if (!confirm(riepilogoMsg)) return;
-
-  // Aggiorna i contatori globali prima di azzerare lo stato locale, cosi' la prossima
-  // sessione (o un'altra scheda) trova dati e sync coerenti.
+  if (!confirm('Vuoi uscire dal profilo?')) return;
   salvaDatiUtente();
-  updateHeader();
-
   S.set('utenteCorrente', null);
   utenteCorrente = null;
   giornate = []; settings = {}; storicoPaga = [];
