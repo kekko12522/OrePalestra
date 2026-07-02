@@ -450,7 +450,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v6.0.0</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v6.0.1</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -613,7 +613,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v6.0.0</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v6.0.1</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -894,7 +894,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '6.0.0';
+const APP_VERSION = '6.0.1';
 
 
 // ============================================================
@@ -2236,15 +2236,33 @@ async function accediEsistente() {
     return;
   }
 
+  // 3) La lista /api/admin è solo un riepilogo e può non includere l'avatar completo.
+  //    Recuperiamo il record integrale salvato per l'utente per essere certi di avere
+  //    l'avatar scelto dall'admin, non un valore di default.
+  let avatarCompleto = (datiRemoti && datiRemoti.avatar) || null;
+  try {
+    const respFull = await fetch(WORKER_URL + '/api/utente/' + id, {
+      headers: { 'X-API-Key': WORKER_API_KEY },
+      signal: AbortSignal.timeout(6000)
+    });
+    if (respFull.ok) {
+      const full = await respFull.json();
+      if (full && full.avatar) avatarCompleto = full.avatar;
+    }
+  } catch(e) { /* usa il fallback già raccolto */ }
+
   // Accesso consentito
   let u = locali.find(x => x.id === id);
   if (!u) {
     // Prima volta su questo dispositivo — usa i dati trovati sul Worker (autoritativi)
-    u = datiRemoti
-      ? { id, nome: datiRemoti.nome || nome, avatar: datiRemoti.avatar || '👤', pin: existPinBuffer }
-      : { id, nome, avatar: '👤', pin: existPinBuffer };
+    u = { id, nome: (datiRemoti && datiRemoti.nome) || nome, avatar: avatarCompleto || '👤', pin: existPinBuffer };
     locali.push(u);
     S.set('utenti', locali);
+  } else if (avatarCompleto && u.avatar !== avatarCompleto) {
+    // Sincronizza l'avatar anche se il profilo esisteva già su questo dispositivo
+    // ma l'admin lo ha cambiato nel frattempo da un altro dispositivo.
+    u.avatar = avatarCompleto;
+    S.set('utenti', locali.map(x => x.id === id ? u : x));
   }
 
   utenteCorrente = u;
