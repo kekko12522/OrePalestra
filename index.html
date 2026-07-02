@@ -450,7 +450,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v6.0.1</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.6.2</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -613,7 +613,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v6.0.1</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.6.2</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -894,7 +894,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '6.0.1';
+const APP_VERSION = '0.6.2';
 
 
 // ============================================================
@@ -1876,6 +1876,36 @@ function makeUserId(nome, pin) {
   return 'u_' + Math.abs(hash).toString(36);
 }
 
+// Estrae l'avatar da una risposta del Worker qualunque sia la sua forma esatta
+// (top-level, dentro "settings", dentro "utente"/"profile"/"data", ecc.), e
+// valida che sia effettivamente un'emoji/carattere breve e non un placeholder vuoto.
+function estraiAvatar(obj) {
+  if (!obj || typeof obj !== 'object') return null;
+  // Il Worker avvolge i dati utente in { record: {...} } (vedi pullFromSheets) —
+  // controlliamo sia la forma "avvolta" che quella "piatta" per sicurezza.
+  const rec = obj.record && typeof obj.record === 'object' ? obj.record : obj;
+  const candidati = [
+    rec.settings && rec.settings.avatar,   // posizione principale/affidabile (dentro "settings")
+    rec.avatar,
+    rec.emoji,
+    rec.icon,
+    obj.settings && obj.settings.avatar,
+    obj.avatar,
+    rec.utente && rec.utente.avatar,
+    rec.profile && rec.profile.avatar,
+    rec.data && rec.data.avatar,
+    rec.user && rec.user.avatar
+  ];
+  for (const c of candidati) {
+    if (typeof c === 'string' && c.trim() !== '' && c.trim() !== '👤') return c.trim();
+  }
+  // Se l'unico valore trovato è il default 👤 esplicito, va comunque bene restituirlo
+  for (const c of candidati) {
+    if (typeof c === 'string' && c.trim() !== '') return c.trim();
+  }
+  return null;
+}
+
 function initLogin() {
   const saved = S.get('utenteCorrente', null);
   // Valida che l'utente salvato abbia tutti i campi necessari
@@ -2236,10 +2266,11 @@ async function accediEsistente() {
     return;
   }
 
-  // 3) La lista /api/admin è solo un riepilogo e può non includere l'avatar completo.
-  //    Recuperiamo il record integrale salvato per l'utente per essere certi di avere
-  //    l'avatar scelto dall'admin, non un valore di default.
-  let avatarCompleto = (datiRemoti && datiRemoti.avatar) || null;
+  // 3) La lista /api/admin è solo un riepilogo e la struttura esatta della risposta
+  //    del Worker non è nota con certezza: l'avatar potrebbe trovarsi a diversi livelli
+  //    di annidamento. Recuperiamo anche il record integrale (/api/utente/:id) e
+  //    cerchiamo l'avatar in tutte le posizioni plausibili prima di arrenderci al default.
+  let avatarCompleto = estraiAvatar(datiRemoti);
   try {
     const respFull = await fetch(WORKER_URL + '/api/utente/' + id, {
       headers: { 'X-API-Key': WORKER_API_KEY },
@@ -2247,7 +2278,8 @@ async function accediEsistente() {
     });
     if (respFull.ok) {
       const full = await respFull.json();
-      if (full && full.avatar) avatarCompleto = full.avatar;
+      const avatarFull = estraiAvatar(full);
+      if (avatarFull) avatarCompleto = avatarFull;
     }
   } catch(e) { /* usa il fallback già raccolto */ }
 
@@ -2380,6 +2412,17 @@ async function pullFromSheets() {
           nome: utenteCorrente.nome, pagaOraria:0,
           moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:''
         }, data.settings);
+        // Sincronizza l'avatar (scelto dall'admin) nella sessione attiva e nella
+        // lista locale dei profili, così l'header e la schermata di login lo
+        // mostrano subito senza dover rifare il login.
+        if (data.settings.avatar && utenteCorrente.avatar !== data.settings.avatar) {
+          utenteCorrente = Object.assign({}, utenteCorrente, { avatar: data.settings.avatar });
+          S.set('utenteCorrente', utenteCorrente);
+          const listaUtenti = S.get('utenti', []).map(u =>
+            u.id === utenteCorrente.id ? { ...u, avatar: data.settings.avatar } : u
+          );
+          S.set('utenti', listaUtenti);
+        }
       }
       if (data.storicoPaga && data.storicoPaga.length >= storicoPaga.length) {
         storicoPaga = data.storicoPaga;
@@ -2635,20 +2678,28 @@ async function adminSalvaProfilo() {
         const settingsVecchie  = S.get('settings_' + adminUtenteInEditing, {});
         const storicoVecchio   = S.get('storicoPaga_' + adminUtenteInEditing, []);
         S.set('giornate_'    + nuovoId, giornateVecchie);
-        S.set('settings_'    + nuovoId, Object.assign({}, settingsVecchie, { nome }));
+        S.set('settings_'    + nuovoId, Object.assign({}, settingsVecchie, { nome, avatar, pin }));
         S.set('storicoPaga_' + nuovoId, storicoVecchio);
         // Elimina vecchio da Worker
         try { await fetch(WORKER_URL+'/api/utente/'+adminUtenteInEditing, { method:'DELETE', headers:{'X-API-Key':WORKER_API_KEY} }); } catch(e){}
+      } else {
+        // Stesso ID: aggiorna comunque settings locale con avatar/pin correnti
+        const settingsAttuali = S.get('settings_' + nuovoId, {});
+        S.set('settings_' + nuovoId, Object.assign({}, settingsAttuali, { nome, avatar, pin }));
       }
       // Aggiorna localmente
       let utenti = S.get('utenti', []);
       utenti = utenti.map(u => u.id === adminUtenteInEditing ? { ...u, ...payload } : u);
       if (!utenti.find(u => u.id === nuovoId)) utenti.push(payload);
       S.set('utenti', utenti);
-      // Salva su Worker (nuovi dati giornate)
+      // Salva su Worker (nuovi dati giornate). NB: avatar/nome/pin vengono duplicati
+      // sia dentro "settings" (unico campo che il Worker sembra persistere in modo
+      // affidabile, in base alla struttura osservata su KV) sia a livello radice,
+      // per massima compatibilità con eventuali versioni del Worker.
       try {
+        const settingsComplete = Object.assign(S.get('settings_'+nuovoId, {}), { nome, avatar, pin });
         const dati = {
-          settings: Object.assign(S.get('settings_'+nuovoId, {}), { nome }),
+          settings: settingsComplete,
           giornate: S.get('giornate_'+nuovoId, []),
           storicoPaga: S.get('storicoPaga_'+nuovoId, []),
           nome, avatar, pin
@@ -2663,12 +2714,12 @@ async function adminSalvaProfilo() {
       // CREAZIONE NUOVO
       let utenti = S.get('utenti', []);
       if (!utenti.find(u => u.id === nuovoId)) { utenti.push(payload); S.set('utenti', utenti); }
-      S.set('settings_' + nuovoId, { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
-      // Salva su Worker
+      S.set('settings_' + nuovoId, { nome, avatar, pin, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
+      // Salva su Worker — avatar/pin duplicati dentro "settings" e a livello radice
       try {
         await fetch(WORKER_URL+'/api/utente/'+nuovoId, {
           method:'POST', headers:{'Content-Type':'application/json','X-API-Key':WORKER_API_KEY},
-          body: JSON.stringify({ settings:{ nome }, giornate:[], storicoPaga:[], nome, avatar, pin })
+          body: JSON.stringify({ settings:{ nome, avatar, pin }, giornate:[], storicoPaga:[], nome, avatar, pin })
         });
       } catch(e){}
       toast('🌸 Profilo creato!');
