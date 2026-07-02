@@ -234,21 +234,27 @@
   .nav-arrow { background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--rose-deep); padding:0 6px; }
   .month-nav { position:relative; }
 
-  /* ---- MONTH/YEAR QUICK PICKER POPUP ---- */
+  /* ---- MONTH/YEAR QUICK PICKER POPUP (overlay centrato) ---- */
   .month-picker-popup {
-    display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%);
-    background:white; border:1.5px solid var(--rose-border); border-radius:14px;
-    box-shadow:var(--shadow); padding:14px; z-index:60; width:min(260px, 90vw);
+    display:none; position:fixed; inset:0; z-index:150;
+    background:rgba(60,20,30,0.38);
+    align-items:center; justify-content:center; padding:20px;
   }
-  .month-picker-popup.open { display:block; animation:popIn 0.15s ease; }
-  @keyframes popIn { from{ opacity:0; transform:translateX(-50%) translateY(-4px); } to{ opacity:1; transform:translateX(-50%) translateY(0); } }
-  .month-picker-popup label { margin-top:0; }
-  .month-picker-popup input[type="month"] {
+  .month-picker-popup.open { display:flex; animation:fadeInBg 0.15s ease; }
+  @keyframes fadeInBg { from{ opacity:0; } to{ opacity:1; } }
+  .month-picker-card {
+    background:white; border:1.5px solid var(--rose-border); border-radius:16px;
+    box-shadow:var(--shadow); padding:18px; width:min(300px, 100%);
+    animation:popIn 0.18s ease;
+  }
+  @keyframes popIn { from{ opacity:0; transform:translateY(-10px) scale(0.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  .month-picker-card label { margin-top:0; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-light); }
+  .month-picker-card input[type="month"] {
     width:100%; padding:10px 12px; border:1.5px solid var(--rose-border); border-radius:10px;
-    font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--brown); background:var(--rose-pale);
+    font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--brown); background:var(--rose-pale); margin-top:6px;
   }
-  .month-picker-actions { display:flex; gap:8px; margin-top:10px; }
-  .month-picker-actions .btn { margin-top:0; padding:8px 10px; font-size:0.78rem; }
+  .month-picker-actions { display:flex; gap:8px; margin-top:14px; }
+  .month-picker-actions .btn { margin-top:0; padding:9px 10px; font-size:0.78rem; }
 
   /* ---- PROGRESS ---- */
   .progress-wrap { margin-top:8px; }
@@ -691,8 +697,11 @@
     <button class="nav-arrow" onclick="cambiaMesseVista(-1)">‹</button>
     <span class="month-nav-title" id="mese-label-vis" onclick="apriSelettoreMese(event)">—</span>
     <button class="nav-arrow" onclick="cambiaMesseVista(1)">›</button>
+  </div>
 
-    <div class="month-picker-popup" id="month-picker-popup" onclick="event.stopPropagation()">
+  <!-- Overlay selettore rapido mese/anno -->
+  <div class="month-picker-popup" id="month-picker-popup" onclick="chiudiSelettoreMese()">
+    <div class="month-picker-card" onclick="event.stopPropagation()">
       <label>Vai a mese/anno</label>
       <input type="month" id="month-picker-input" onchange="selettoreMeseCambiato(this.value)">
       <div class="month-picker-actions">
@@ -1235,22 +1244,11 @@ function apriSelettoreMese(e) {
   if (!popup || !input) return;
   input.value = meseVisto.y + '-' + String(meseVisto.m + 1).padStart(2, '0');
   popup.classList.add('open');
-  // Chiudi cliccando fuori dal popup
-  setTimeout(() => { document.addEventListener('click', chiudiSelettoreMeseFuori); }, 0);
-}
-
-function chiudiSelettoreMeseFuori(e) {
-  const popup = document.getElementById('month-picker-popup');
-  if (!popup) return;
-  if (!popup.contains(e.target) && e.target.id !== 'mese-label-vis') {
-    chiudiSelettoreMese();
-  }
 }
 
 function chiudiSelettoreMese() {
   const popup = document.getElementById('month-picker-popup');
   if (popup) popup.classList.remove('open');
-  document.removeEventListener('click', chiudiSelettoreMeseFuori);
 }
 
 function selettoreMeseCambiato(value) {
@@ -2147,6 +2145,9 @@ async function accediEsistente() {
   // 2) Se non trovato in locale, verifica sulla lista AUTORITATIVA del Worker (/api/admin).
   //    NB: NON usiamo GET /api/utente/:id per la verifica, perché il Worker risponde 200
   //    con un oggetto vuoto/default anche per ID inesistenti (falso positivo).
+  //    Inoltre richiediamo che il record trovato abbia un "nome" valorizzato e coincidente
+  //    con quello digitato: un ID KV "orfano" (creato per errore prima di questo fix, privo
+  //    di settings/nome) NON deve mai essere considerato un account valido.
   if (!trovato) {
     try {
       const resp = await fetch(WORKER_URL + '/api/admin', {
@@ -2156,7 +2157,12 @@ async function accediEsistente() {
       if (resp.ok) {
         const json = await resp.json();
         if (json && json.ok && Array.isArray(json.utenti)) {
-          const match = json.utenti.find(u => u.id === id);
+          const nomeNorm = nome.trim().toLowerCase();
+          const match = json.utenti.find(u =>
+            u.id === id &&
+            u.nome &&
+            u.nome.trim().toLowerCase() === nomeNorm
+          );
           if (match) { trovato = true; datiRemoti = match; }
         }
       }
