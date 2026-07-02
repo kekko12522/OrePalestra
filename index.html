@@ -118,6 +118,22 @@
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
 
+  /* ---- NAVIGAZIONE RAPIDA DATA (Oggi tab) ---- */
+  .date-nav { display:flex; align-items:stretch; gap:8px; }
+  .date-nav input[type="date"] { flex:1; text-align:center; }
+  .date-nav-arrow {
+    flex-shrink:0; width:42px; border:1.5px solid var(--rose-border); border-radius:10px;
+    background:white; color:var(--rose-deep); font-size:1.3rem; font-weight:600;
+    cursor:pointer; transition:background 0.15s;
+  }
+  .date-nav-arrow:hover, .date-nav-arrow:active { background:var(--rose-pale); }
+  .date-oggi-btn {
+    display:block; width:100%; margin-top:8px; padding:7px; border:none; background:none;
+    color:var(--rose-deep); font-family:'DM Sans',sans-serif; font-size:0.76rem; font-weight:600;
+    cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  }
+  .date-oggi-btn:hover { color:var(--rose-dark, var(--rose-deep)); }
+
   /* ---- TIPO GIORNATA PILLS ---- */
   .tipo-group { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
   .tipo-pill {
@@ -234,26 +250,27 @@
   .nav-arrow { background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--rose-deep); padding:0 6px; }
   .month-nav { position:relative; }
 
-  /* ---- MONTH/YEAR QUICK PICKER POPUP (overlay centrato) ---- */
+  /* ---- MONTH/YEAR QUICK PICKER POPUP (overlay ancorato in alto, compatto) ---- */
   .month-picker-popup {
     display:none; position:fixed; inset:0; z-index:150;
     background:rgba(60,20,30,0.38);
-    align-items:center; justify-content:center; padding:20px;
+    align-items:flex-start; justify-content:center; padding:0 20px;
   }
   .month-picker-popup.open { display:flex; animation:fadeInBg 0.15s ease; }
   @keyframes fadeInBg { from{ opacity:0; } to{ opacity:1; } }
   .month-picker-card {
-    background:white; border:1.5px solid var(--rose-border); border-radius:16px;
-    box-shadow:var(--shadow); padding:18px; width:min(300px, 100%);
+    margin-top:min(22vh, 190px);
+    background:white; border:1.5px solid var(--rose-border); border-radius:14px;
+    box-shadow:var(--shadow); padding:14px; width:min(240px, 100%);
     animation:popIn 0.18s ease;
   }
-  @keyframes popIn { from{ opacity:0; transform:translateY(-10px) scale(0.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
-  .month-picker-card label { margin-top:0; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; color:var(--brown-light); }
+  @keyframes popIn { from{ opacity:0; transform:translateY(-8px) scale(0.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
+  .month-picker-card label { margin-top:0; font-size:0.62rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:var(--brown-light); }
   .month-picker-card input[type="month"] {
-    width:100%; padding:10px 12px; border:1.5px solid var(--rose-border); border-radius:10px;
-    font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--brown); background:var(--rose-pale); margin-top:6px;
+    width:100%; padding:8px 10px; border:1.5px solid var(--rose-border); border-radius:9px;
+    font-family:'DM Sans',sans-serif; font-size:0.84rem; color:var(--brown); background:var(--rose-pale); margin-top:5px;
   }
-  .month-picker-actions { display:flex; gap:8px; margin-top:14px; }
+  .month-picker-actions { display:flex; gap:7px; margin-top:11px; }
   .month-picker-actions .btn { margin-top:0; padding:9px 10px; font-size:0.78rem; }
 
   /* ---- PROGRESS ---- */
@@ -430,7 +447,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.5.2</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.5.8</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -593,7 +610,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.5.2</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.5.8</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -625,7 +642,12 @@
     </div>
 
     <label>Data</label>
-    <input type="date" id="input-data">
+    <div class="date-nav">
+      <button type="button" class="date-nav-arrow" onclick="cambiaGiornoInput(-1)">‹</button>
+      <input type="date" id="input-data">
+      <button type="button" class="date-nav-arrow" onclick="cambiaGiornoInput(1)">›</button>
+    </div>
+    <button type="button" class="date-oggi-btn" onclick="andaOggiInput()">📍 Torna a oggi</button>
 
     <div id="ore-section">
       <div class="row2">
@@ -869,7 +891,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.5.2';
+const APP_VERSION = '0.5.8';
 
 
 // ============================================================
@@ -933,6 +955,26 @@ function oggi() {
   const m = String(d.getMonth()+1).padStart(2,'0');
   const g = String(d.getDate()).padStart(2,'0');
   return y + '-' + m + '-' + g;
+}
+
+// ============================================================
+// NAVIGAZIONE RAPIDA DATA (Oggi tab) — frecce ‹ › e Torna a oggi
+// ============================================================
+function cambiaGiornoInput(delta) {
+  const inp = document.getElementById('input-data');
+  if (!inp) return;
+  const base = inp.value ? new Date(inp.value + 'T12:00:00') : new Date();
+  base.setDate(base.getDate() + delta);
+  const y = base.getFullYear();
+  const m = String(base.getMonth()+1).padStart(2,'0');
+  const g = String(base.getDate()).padStart(2,'0');
+  inp.value = y + '-' + m + '-' + g;
+}
+
+function andaOggiInput() {
+  const inp = document.getElementById('input-data');
+  if (!inp) return;
+  inp.value = oggi();
 }
 
 function toast(msg, dur=2400) {
@@ -1046,7 +1088,8 @@ function aggiungiGiornata() {
   renderRecenti();
   updateHeader();
   calcolaStreak();
-  setDataOggi();
+  // NB: la data NON viene resettata a oggi — resta quella appena inserita,
+  // così con le frecce ‹ › si può proseguire rapidamente giorno per giorno.
   if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
   if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
 }
@@ -2436,7 +2479,14 @@ function adminRenderLista(utenti) {
   el.innerHTML = utenti.map(u => {
     const nome = u.nome || '—';
     const id   = u.id   || '—';
-    const ore  = u.totOre != null ? fmtOre(u.totOre) : '—';
+    // Coercizione robusta: totOre può arrivare dal Worker come numero, stringa,
+    // undefined o valore "sporco" — evitiamo di mostrare "NaNh" in ogni caso.
+    const totOreNum = (typeof u.totOre === 'number' && isFinite(u.totOre))
+      ? u.totOre
+      : (typeof u.totOre === 'string' && u.totOre.trim() !== '' && isFinite(parseFloat(u.totOre)))
+        ? parseFloat(u.totOre)
+        : null;
+    const ore = totOreNum != null ? fmtOre(totOreNum) : '—';
     return `<div style="background:white;border:1.5px solid var(--rose-border);border-radius:12px;padding:12px 14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
