@@ -264,10 +264,9 @@
   .month-picker-card {
     margin-top:min(22vh, 190px);
     background:white; border:1.5px solid var(--rose-border); border-radius:14px;
-    box-shadow:var(--shadow); padding:16px; width:min(280px, 92vw);
-    overflow:hidden; /* protezione: il controllo nativo iOS input[type=month] può
-                         avere una larghezza interna minima maggiore del box su
-                         schermi stretti — questo evita che sfori visivamente */
+    box-shadow:var(--shadow); padding:14px; width:min(320px, 90vw);
+    overflow:hidden; /* protezione extra: anche se il controllo nativo iOS dovesse
+                         comunque eccedere, non sforerà mai fuori dalla card */
     animation:popIn 0.18s ease;
   }
   @keyframes popIn { from{ opacity:0; transform:translateY(-8px) scale(0.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
@@ -277,12 +276,12 @@
   }
   .month-picker-card input[type="month"] {
     display:block; box-sizing:border-box; width:100%; max-width:100%;
-    padding:9px 8px; border:1.5px solid var(--rose-border); border-radius:9px;
+    padding:9px 6px; border:1.5px solid var(--rose-border); border-radius:9px;
     font-family:'DM Sans',sans-serif; font-size:0.84rem; color:var(--brown);
     background:var(--rose-pale); margin-top:6px; text-align:center;
   }
   .month-picker-actions { display:flex; gap:7px; margin-top:12px; }
-  .month-picker-actions .btn { flex:1; margin-top:0; padding:9px 6px; font-size:0.76rem; text-align:center; }
+  .month-picker-actions .btn { flex:1; margin-top:0; padding:9px 4px; font-size:0.76rem; text-align:center; }
 
   /* ---- PROGRESS ---- */
   .progress-wrap { margin-top:8px; }
@@ -458,7 +457,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.6.3</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.6.4</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -621,7 +620,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.6.3</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.6.4</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -902,7 +901,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.6.3';
+const APP_VERSION = '0.6.4';
 
 
 // ============================================================
