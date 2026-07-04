@@ -496,7 +496,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.0</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.1</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -662,7 +662,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.0</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.1</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -940,6 +940,7 @@
   <div class="modal">
     <div class="modal-handle"></div>
     <div class="modal-title">⏱️ Inserimento rapido turni</div>
+    <div id="turni-data-info" style="font-size:0.78rem;color:var(--brown-light);margin-top:-8px;margin-bottom:12px;"></div>
     <div id="turni-body">
       <label>🌅 Turno mattutino</label>
       <div class="row2">
@@ -992,7 +993,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.8.0';
+const APP_VERSION = '0.8.1';
 
 
 // ============================================================
@@ -1212,6 +1213,18 @@ function apriModalTurni() {
   document.getElementById('btn-conferma-turni').style.display = 'none';
   turniOreCalcolate = 0;
   turniNotaAuto = '';
+
+  const dataRif = document.getElementById('input-data').value;
+  const infoEl  = document.getElementById('turni-data-info');
+  if (dataRif) {
+    const dt = new Date(dataRif + 'T12:00:00');
+    const oggiStr = new Date().toISOString().slice(0,10);
+    const etichetta = dataRif === oggiStr ? 'oggi' : fmtData(dataRif);
+    infoEl.innerHTML = '📅 Le ore verranno caricate per <strong>' + etichetta + '</strong>';
+  } else {
+    infoEl.innerHTML = '';
+  }
+
   document.getElementById('modal-turni-overlay').classList.add('open');
 }
 function chiudiModalTurni(e) { if (e.target === e.currentTarget) chiudiModalTurniBtn(); }
@@ -1266,11 +1279,15 @@ function calcolaTurni() {
   if (haPomeriggio) parti.push(pi + '-' + pf);
   turniNotaAuto = 'Turno: ' + parti.join(' | ');
 
+  const dataRif   = document.getElementById('input-data').value;
+  const oggiStr   = new Date().toISOString().slice(0,10);
+  const etichetta = (dataRif && dataRif !== oggiStr) ? fmtData(dataRif) : 'oggi';
+
   let messaggio;
   if (haMattina && haPomeriggio) {
-    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + ' (' + fmtOre(oreMattina) + ' + ' + fmtOre(orePomeriggio) + '). Vuoi confermare?';
+    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + ' (' + fmtOre(oreMattina) + ' + ' + fmtOre(orePomeriggio) + '). Vuoi confermare per ' + etichetta + '?';
   } else {
-    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + '. Le vuoi caricare per la giornata di oggi?';
+    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + '. Le vuoi caricare per ' + etichetta + '?';
   }
 
   risultatoEl.innerHTML = '<div style="margin-top:12px;background:var(--rose-pale);border:1px solid var(--rose-border);border-radius:10px;padding:12px;font-size:0.85rem;color:var(--brown);text-align:center;">' + messaggio + '</div>';
@@ -1283,14 +1300,15 @@ function calcolaTurni() {
 function confermaTurni() {
   if (!turniOreCalcolate) { toast('⏱ Inserisci almeno un turno!'); return; }
 
+  const dataInput = document.getElementById('input-data').value;
   const oggi = new Date();
-  const data = oggi.getFullYear() + '-' + String(oggi.getMonth()+1).padStart(2,'0') + '-' + String(oggi.getDate()).padStart(2,'0');
+  const data = dataInput || (oggi.getFullYear() + '-' + String(oggi.getMonth()+1).padStart(2,'0') + '-' + String(oggi.getDate()).padStart(2,'0'));
   const notaInput = document.getElementById('turni-nota').value.trim();
   const nota = notaInput || turniNotaAuto;
 
   const dup = giornate.find(g => g.data === data);
   if (dup) {
-    if (!confirm('Hai già una giornata per oggi. Sostituisci?')) return;
+    if (!confirm('Hai già una giornata per questa data. Sostituisci?')) return;
     giornate = giornate.filter(g => g.data !== data);
   }
 
@@ -1299,7 +1317,7 @@ function confermaTurni() {
   salvaDatiUtente();
   pushToSheets();
 
-  toast('✅ Ore caricate per oggi!');
+  toast('✅ Ore caricate!');
   chiudiModalTurniBtn();
   renderRecenti();
   updateHeader();
