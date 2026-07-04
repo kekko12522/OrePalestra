@@ -496,7 +496,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.1</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.2</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -662,7 +662,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.1</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.2</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -946,11 +946,11 @@
       <div class="row2">
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
-          <input type="time" id="turno-matt-inizio" oninput="calcolaTurni()">
+          <input type="time" id="turno-matt-inizio" step="300" oninput="calcolaTurni()">
         </div>
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
-          <input type="time" id="turno-matt-fine" oninput="calcolaTurni()">
+          <input type="time" id="turno-matt-fine" step="300" oninput="calcolaTurni()">
         </div>
       </div>
 
@@ -958,11 +958,11 @@
       <div class="row2">
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
-          <input type="time" id="turno-pom-inizio" oninput="calcolaTurni()">
+          <input type="time" id="turno-pom-inizio" step="300" oninput="calcolaTurni()">
         </div>
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
-          <input type="time" id="turno-pom-fine" oninput="calcolaTurni()">
+          <input type="time" id="turno-pom-fine" step="300" oninput="calcolaTurni()">
         </div>
       </div>
 
@@ -993,7 +993,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.8.1';
+const APP_VERSION = '0.8.2';
 
 
 // ============================================================
