@@ -149,6 +149,9 @@
   input:focus, select:focus, textarea:focus { border-color:var(--rose-deep); background:white; }
   .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   .row3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+  .time-picker-row { display:flex; align-items:center; gap:4px; }
+  .time-picker-row select { flex:1; min-width:0; padding:10px 2px; text-align:center; text-align-last:center; }
+  .time-picker-row .time-sep { color:var(--brown-light); font-weight:700; flex-shrink:0; }
 
   /* ---- NAVIGAZIONE RAPIDA DATA (Oggi tab) ---- */
   .date-nav { display:flex; align-items:stretch; gap:8px; }
@@ -496,7 +499,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.2</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.3</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -662,7 +665,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.2</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.3</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -946,11 +949,19 @@
       <div class="row2">
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
-          <input type="time" id="turno-matt-inizio" step="300" oninput="calcolaTurni()">
+          <div class="time-picker-row">
+            <select id="turno-matt-inizio-h" onchange="calcolaTurni()"></select>
+            <span class="time-sep">:</span>
+            <select id="turno-matt-inizio-m" onchange="calcolaTurni()"></select>
+          </div>
         </div>
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
-          <input type="time" id="turno-matt-fine" step="300" oninput="calcolaTurni()">
+          <div class="time-picker-row">
+            <select id="turno-matt-fine-h" onchange="calcolaTurni()"></select>
+            <span class="time-sep">:</span>
+            <select id="turno-matt-fine-m" onchange="calcolaTurni()"></select>
+          </div>
         </div>
       </div>
 
@@ -958,11 +969,19 @@
       <div class="row2">
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
-          <input type="time" id="turno-pom-inizio" step="300" oninput="calcolaTurni()">
+          <div class="time-picker-row">
+            <select id="turno-pom-inizio-h" onchange="calcolaTurni()"></select>
+            <span class="time-sep">:</span>
+            <select id="turno-pom-inizio-m" onchange="calcolaTurni()"></select>
+          </div>
         </div>
         <div>
           <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
-          <input type="time" id="turno-pom-fine" step="300" oninput="calcolaTurni()">
+          <div class="time-picker-row">
+            <select id="turno-pom-fine-h" onchange="calcolaTurni()"></select>
+            <span class="time-sep">:</span>
+            <select id="turno-pom-fine-m" onchange="calcolaTurni()"></select>
+          </div>
         </div>
       </div>
 
@@ -993,7 +1012,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.8.2';
+const APP_VERSION = '0.8.3';
 
 
 // ============================================================
@@ -1201,12 +1220,52 @@ function aggiungiGiornata() {
 // ============================================================
 let turniOreCalcolate = 0;
 let turniNotaAuto = '';
+const TURNI_CAMPI = ['turno-matt-inizio','turno-matt-fine','turno-pom-inizio','turno-pom-fine'];
+
+function popolaSelectOrario(id, tipo) {
+  const sel = document.getElementById(id);
+  if (!sel || sel.options.length) return;
+  const optVuota = document.createElement('option');
+  optVuota.value = '';
+  optVuota.textContent = '--';
+  sel.appendChild(optVuota);
+  if (tipo === 'h') {
+    for (let h = 0; h < 24; h++) {
+      const v = String(h).padStart(2,'0');
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    }
+  } else {
+    for (let m = 0; m < 60; m += 5) {
+      const v = String(m).padStart(2,'0');
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    }
+  }
+}
+
+function initSelectTurni() {
+  TURNI_CAMPI.forEach(function(prefix) {
+    popolaSelectOrario(prefix + '-h', 'h');
+    popolaSelectOrario(prefix + '-m', 'm');
+  });
+}
+initSelectTurni();
+
+function leggiOrarioTurno(prefix) {
+  const h = document.getElementById(prefix + '-h').value;
+  const m = document.getElementById(prefix + '-m').value;
+  if (h === '' || m === '') return '';
+  return h + ':' + m;
+}
 
 function apriModalTurni() {
-  document.getElementById('turno-matt-inizio').value = '';
-  document.getElementById('turno-matt-fine').value = '';
-  document.getElementById('turno-pom-inizio').value = '';
-  document.getElementById('turno-pom-fine').value = '';
+  TURNI_CAMPI.forEach(function(prefix) {
+    document.getElementById(prefix + '-h').value = '';
+    document.getElementById(prefix + '-m').value = '';
+  });
   document.getElementById('turni-nota').value = '';
   document.getElementById('turni-risultato').innerHTML = '';
   document.getElementById('turni-nota-wrap').style.display = 'none';
@@ -1217,7 +1276,6 @@ function apriModalTurni() {
   const dataRif = document.getElementById('input-data').value;
   const infoEl  = document.getElementById('turni-data-info');
   if (dataRif) {
-    const dt = new Date(dataRif + 'T12:00:00');
     const oggiStr = new Date().toISOString().slice(0,10);
     const etichetta = dataRif === oggiStr ? 'oggi' : fmtData(dataRif);
     infoEl.innerHTML = '📅 Le ore verranno caricate per <strong>' + etichetta + '</strong>';
@@ -1240,10 +1298,10 @@ function diffOreTurno(inizio, fine) {
 }
 
 function calcolaTurni() {
-  const mi = document.getElementById('turno-matt-inizio').value;
-  const mf = document.getElementById('turno-matt-fine').value;
-  const pi = document.getElementById('turno-pom-inizio').value;
-  const pf = document.getElementById('turno-pom-fine').value;
+  const mi = leggiOrarioTurno('turno-matt-inizio');
+  const mf = leggiOrarioTurno('turno-matt-fine');
+  const pi = leggiOrarioTurno('turno-pom-inizio');
+  const pf = leggiOrarioTurno('turno-pom-fine');
 
   const haMattina    = !!(mi && mf);
   const haPomeriggio = !!(pi && pf);
