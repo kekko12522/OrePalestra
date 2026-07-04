@@ -43,6 +43,35 @@
     padding-bottom: 60px;
   }
 
+  /* ---- APP SHELL: layout desktop-responsive ---- */
+  .app-shell {
+    max-width: 560px;
+    margin: 0 auto;
+    background: var(--cream);
+    min-height: 100vh;
+    position: relative;
+  }
+  @media (min-width: 700px) {
+    body {
+      background: linear-gradient(160deg, #f5c6d6 0%, #fde8ef 45%, #f3e6e0 100%);
+      padding-bottom: 0;
+    }
+    .app-shell {
+      margin: 32px auto;
+      min-height: calc(100vh - 64px);
+      border-radius: 22px;
+      box-shadow: 0 20px 60px rgba(120, 60, 80, 0.18), 0 2px 8px rgba(120,60,80,0.08);
+      overflow: hidden;
+      border: 1px solid rgba(232, 160, 180, 0.35);
+    }
+    .app-shell > header {
+      border-radius: 22px 22px 0 0;
+    }
+  }
+  @media (min-width: 1000px) {
+    .app-shell { max-width: 640px; }
+  }
+
   /* ---- HEADER ---- */
   header {
     background: linear-gradient(135deg, #f5c6d6 0%, #fde8ef 60%, #fdf8f5 100%);
@@ -274,11 +303,20 @@
     display:block; margin-top:0; font-size:0.62rem; font-weight:700;
     text-transform:uppercase; letter-spacing:0.07em; color:var(--brown-light); text-align:center;
   }
-  .month-picker-card input[type="month"] {
-    display:block; box-sizing:border-box; width:100%; max-width:100%;
-    padding:9px 6px; border:1.5px solid var(--rose-border); border-radius:9px;
-    font-family:'DM Sans',sans-serif; font-size:0.84rem; color:var(--brown);
-    background:var(--rose-pale); margin-top:6px; text-align:center;
+  /* Il controllo nativo iOS <input type="month"> ha un rendering interno che non
+     rispetta sempre simmetricamente il box CSS (padding/centratura). Per garantire
+     un allineamento perfetto lo rendiamo invisibile ma cliccabile, sovrapposto a
+     una "finta" casella che mostriamo noi con testo perfettamente centrato. */
+  .month-picker-input-wrap { position:relative; margin-top:6px; }
+  .month-picker-input-wrap input[type="month"] {
+    position:absolute; inset:0; width:100%; height:100%;
+    opacity:0; border:none; margin:0; padding:0; cursor:pointer;
+  }
+  .month-picker-fake-display {
+    box-sizing:border-box; width:100%; padding:11px 6px;
+    border:1.5px solid var(--rose-border); border-radius:9px;
+    font-family:'DM Sans',sans-serif; font-size:0.9rem; color:var(--brown);
+    background:var(--rose-pale); text-align:center; pointer-events:none;
   }
   .month-picker-actions { display:flex; gap:7px; margin-top:12px; }
   .month-picker-actions .btn { flex:1; margin-top:0; padding:9px 4px; font-size:0.76rem; text-align:center; }
@@ -457,7 +495,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.6.4</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.7.0</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -616,11 +654,14 @@
   </div>
 </div>
 
+<!-- ===== APP SHELL (contenitore centrato per desktop) ===== -->
+<div class="app-shell">
+
 <header>
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.6.4</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.7.0</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -735,7 +776,10 @@
   <div class="month-picker-popup" id="month-picker-popup" onclick="chiudiSelettoreMese()">
     <div class="month-picker-card" onclick="event.stopPropagation()">
       <label>Vai a mese/anno</label>
-      <input type="month" id="month-picker-input" onchange="selettoreMeseCambiato(this.value)">
+      <div class="month-picker-input-wrap">
+        <div class="month-picker-fake-display" id="month-picker-fake">luglio 2026</div>
+        <input type="month" id="month-picker-input" onchange="selettoreMeseCambiato(this.value)" oninput="aggiornaFakeDisplayMese(this.value)">
+      </div>
       <div class="month-picker-actions">
         <button class="btn btn-ghost" style="flex:1" onclick="vaiAlMese(new Date().getFullYear(), new Date().getMonth()); chiudiSelettoreMese();">Oggi</button>
         <button class="btn btn-ghost" style="flex:1" onclick="chiudiSelettoreMese()">Chiudi</button>
@@ -877,6 +921,9 @@
 
 </div>
 
+</div>
+<!-- ===== /APP SHELL ===== -->
+
 <!-- ===== MODAL DETTAGLIO GIORNO ===== -->
 <div class="modal-overlay" id="modal-overlay" onclick="chiudiModal(event)">
   <div class="modal">
@@ -901,7 +948,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.6.4';
+const APP_VERSION = '0.7.0';
 
 
 // ============================================================
@@ -1295,8 +1342,20 @@ function apriSelettoreMese(e) {
   const popup = document.getElementById('month-picker-popup');
   const input = document.getElementById('month-picker-input');
   if (!popup || !input) return;
-  input.value = meseVisto.y + '-' + String(meseVisto.m + 1).padStart(2, '0');
+  const val = meseVisto.y + '-' + String(meseVisto.m + 1).padStart(2, '0');
+  input.value = val;
+  aggiornaFakeDisplayMese(val);
   popup.classList.add('open');
+}
+
+// Mantiene sincronizzato il testo "finto" mostrato al posto del controllo nativo
+// (che su iOS non si centra sempre in modo simmetrico all'interno del box).
+function aggiornaFakeDisplayMese(value) {
+  const fake = document.getElementById('month-picker-fake');
+  if (!fake || !value) return;
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return;
+  fake.textContent = MESI[m - 1].toLowerCase() + ' ' + y;
 }
 
 function chiudiSelettoreMese() {
