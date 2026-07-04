@@ -483,6 +483,7 @@
   }
   .avatar-btn.selected { border-color:var(--rose-deep); background:white; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -495,7 +496,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.7.0</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.0</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -661,7 +662,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.7.0</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.0</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -753,6 +754,7 @@
     <input type="text" id="input-nota" placeholder="es. turno notturno, visita medica…">
 
     <button class="btn btn-primary" onclick="aggiungiGiornata()">➕ Salva giornata</button>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="apriModalTurni()">⏱️ Inserimento rapido turni</button>
   </div>
 
   <div class="card">
@@ -934,6 +936,48 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-turni-overlay" onclick="chiudiModalTurni(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">⏱️ Inserimento rapido turni</div>
+    <div id="turni-body">
+      <label>🌅 Turno mattutino</label>
+      <div class="row2">
+        <div>
+          <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
+          <input type="time" id="turno-matt-inizio" oninput="calcolaTurni()">
+        </div>
+        <div>
+          <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
+          <input type="time" id="turno-matt-fine" oninput="calcolaTurni()">
+        </div>
+      </div>
+
+      <label style="margin-top:12px;">🌇 Turno pomeridiano</label>
+      <div class="row2">
+        <div>
+          <label style="font-size:0.68rem;color:var(--brown-light);">Inizio</label>
+          <input type="time" id="turno-pom-inizio" oninput="calcolaTurni()">
+        </div>
+        <div>
+          <label style="font-size:0.68rem;color:var(--brown-light);">Fine</label>
+          <input type="time" id="turno-pom-fine" oninput="calcolaTurni()">
+        </div>
+      </div>
+
+      <div id="turni-risultato"></div>
+
+      <div id="turni-nota-wrap" style="display:none;margin-top:12px;">
+        <label>Nota (modificabile)</label>
+        <input type="text" id="turni-nota" placeholder="es. Turno: 09:00-12:00 | 15:00-19:00">
+      </div>
+
+      <button class="btn btn-primary" id="btn-conferma-turni" style="display:none" onclick="confermaTurni()">✅ Conferma e carica</button>
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:14px;" onclick="chiudiModalTurniBtn()">Chiudi</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -948,7 +992,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.7.0';
+const APP_VERSION = '0.8.0';
 
 
 // ============================================================
@@ -1147,6 +1191,119 @@ function aggiungiGiornata() {
   calcolaStreak();
   // NB: la data NON viene resettata a oggi — resta quella appena inserita,
   // così con le frecce ‹ › si può proseguire rapidamente giorno per giorno.
+  if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
+  if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
+}
+
+// ============================================================
+// INSERIMENTO RAPIDO TURNI
+// ============================================================
+let turniOreCalcolate = 0;
+let turniNotaAuto = '';
+
+function apriModalTurni() {
+  document.getElementById('turno-matt-inizio').value = '';
+  document.getElementById('turno-matt-fine').value = '';
+  document.getElementById('turno-pom-inizio').value = '';
+  document.getElementById('turno-pom-fine').value = '';
+  document.getElementById('turni-nota').value = '';
+  document.getElementById('turni-risultato').innerHTML = '';
+  document.getElementById('turni-nota-wrap').style.display = 'none';
+  document.getElementById('btn-conferma-turni').style.display = 'none';
+  turniOreCalcolate = 0;
+  turniNotaAuto = '';
+  document.getElementById('modal-turni-overlay').classList.add('open');
+}
+function chiudiModalTurni(e) { if (e.target === e.currentTarget) chiudiModalTurniBtn(); }
+function chiudiModalTurniBtn() { document.getElementById('modal-turni-overlay').classList.remove('open'); }
+
+function diffOreTurno(inizio, fine) {
+  if (!inizio || !fine) return 0;
+  const p1 = inizio.split(':').map(Number);
+  const p2 = fine.split(':').map(Number);
+  let mins = (p2[0]*60 + p2[1]) - (p1[0]*60 + p1[1]);
+  if (mins < 0) mins += 24*60; // gestisce turno a cavallo della mezzanotte
+  return mins/60;
+}
+
+function calcolaTurni() {
+  const mi = document.getElementById('turno-matt-inizio').value;
+  const mf = document.getElementById('turno-matt-fine').value;
+  const pi = document.getElementById('turno-pom-inizio').value;
+  const pf = document.getElementById('turno-pom-fine').value;
+
+  const haMattina    = !!(mi && mf);
+  const haPomeriggio = !!(pi && pf);
+
+  const risultatoEl  = document.getElementById('turni-risultato');
+  const notaWrap      = document.getElementById('turni-nota-wrap');
+  const btnConferma  = document.getElementById('btn-conferma-turni');
+
+  if (!haMattina && !haPomeriggio) {
+    risultatoEl.innerHTML = '';
+    notaWrap.style.display = 'none';
+    btnConferma.style.display = 'none';
+    turniOreCalcolate = 0;
+    return;
+  }
+
+  const oreMattina    = haMattina ? diffOreTurno(mi, mf) : 0;
+  const orePomeriggio = haPomeriggio ? diffOreTurno(pi, pf) : 0;
+  const oreTotali     = oreMattina + orePomeriggio;
+
+  if (oreTotali <= 0) {
+    risultatoEl.innerHTML = '<div style="margin-top:12px;color:var(--red);font-size:0.82rem;">⚠️ Controlla gli orari inseriti.</div>';
+    notaWrap.style.display = 'none';
+    btnConferma.style.display = 'none';
+    turniOreCalcolate = 0;
+    return;
+  }
+
+  turniOreCalcolate = oreTotali;
+
+  const parti = [];
+  if (haMattina) parti.push(mi + '-' + mf);
+  if (haPomeriggio) parti.push(pi + '-' + pf);
+  turniNotaAuto = 'Turno: ' + parti.join(' | ');
+
+  let messaggio;
+  if (haMattina && haPomeriggio) {
+    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + ' (' + fmtOre(oreMattina) + ' + ' + fmtOre(orePomeriggio) + '). Vuoi confermare?';
+  } else {
+    messaggio = 'Hai fatto ' + fmtOre(oreTotali) + '. Le vuoi caricare per la giornata di oggi?';
+  }
+
+  risultatoEl.innerHTML = '<div style="margin-top:12px;background:var(--rose-pale);border:1px solid var(--rose-border);border-radius:10px;padding:12px;font-size:0.85rem;color:var(--brown);text-align:center;">' + messaggio + '</div>';
+
+  document.getElementById('turni-nota').value = turniNotaAuto;
+  notaWrap.style.display = 'block';
+  btnConferma.style.display = 'flex';
+}
+
+function confermaTurni() {
+  if (!turniOreCalcolate) { toast('⏱ Inserisci almeno un turno!'); return; }
+
+  const oggi = new Date();
+  const data = oggi.getFullYear() + '-' + String(oggi.getMonth()+1).padStart(2,'0') + '-' + String(oggi.getDate()).padStart(2,'0');
+  const notaInput = document.getElementById('turni-nota').value.trim();
+  const nota = notaInput || turniNotaAuto;
+
+  const dup = giornate.find(g => g.data === data);
+  if (dup) {
+    if (!confirm('Hai già una giornata per oggi. Sostituisci?')) return;
+    giornate = giornate.filter(g => g.data !== data);
+  }
+
+  giornate.push({ data: data, tipo: 'lavoro', sottotipo: null, ore: turniOreCalcolate, extra: 0, guadagnoPattuito: null, nota: nota, ts: Date.now() });
+  giornate.sort((a,b) => a.data.localeCompare(b.data));
+  salvaDatiUtente();
+  pushToSheets();
+
+  toast('✅ Ore caricate per oggi!');
+  chiudiModalTurniBtn();
+  renderRecenti();
+  updateHeader();
+  calcolaStreak();
   if (document.getElementById('tab-mese').classList.contains('active')) renderMese();
   if (document.getElementById('tab-riepilogo').classList.contains('active')) renderRiepilogo();
 }
@@ -1804,6 +1961,7 @@ function apriStampa() {
   const html = `<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
 <title>Riepilogo ${label}${nome?' – '+nome:''}</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:#fff;color:#3a2a2a}
@@ -1849,6 +2007,7 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
 .doc-footer{margin-top:32px;padding-top:14px;border-top:1px solid #f2ccd8;display:flex;justify-content:space-between;font-size:.7rem;color:#b08080}
 .doc-footer .owner{font-weight:700;color:#7a3a50}
 .no-print{background:#f5c6d6;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;font-family:'DM Sans',sans-serif;font-size:.83rem;color:#7a3a50}
+.report-capture{background:#fff}
 @media print{
   .no-print{display:none!important}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -1861,8 +2020,12 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
 <div class="no-print">
   <button onclick="window.close()" style="background:none;border:1px solid #f2ccd8;padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;cursor:pointer;color:#9e7070;">✕ Chiudi</button>
   <span style="font-size:.8rem;color:#9e7070;">🌸 ${label}${nome?' · '+nome:''}</span>
-  <button onclick="window.print()" style="background:#c97090;color:white;border:none;padding:8px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">🖨️ Stampa / PDF</button>
+  <div style="display:flex;gap:8px;">
+    <button id="btn-salva-img" onclick="salvaComeImmagine()" style="background:white;color:#c97090;border:1.5px solid #c97090;padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">📸 Salva come Immagine</button>
+    <button onclick="window.print()" style="background:#c97090;color:white;border:none;padding:8px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">🖨️ Stampa / PDF</button>
+  </div>
 </div>
+<div class="report-capture" id="report-capture">
 <div class="cover">
   <div class="cover-eyebrow">Riepilogo mensile ore lavorate</div>
   <div class="cover-title-row">
@@ -1921,6 +2084,30 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
     <span class="owner">${nome?nome+' · '+label:label}</span>
   </div>
 </div>
+</div>
+<script>
+function salvaComeImmagine() {
+  var btn = document.getElementById('btn-salva-img');
+  var target = document.getElementById('report-capture');
+  if (!window.html2canvas) { alert('⚠️ Libreria di esportazione non disponibile, riprova.'); return; }
+  var testoOrig = btn.textContent;
+  btn.textContent = '⏳ Genero immagine…';
+  btn.disabled = true;
+  html2canvas(target, { backgroundColor:'#ffffff', scale:2, useCORS:true }).then(function(canvas){
+    var link = document.createElement('a');
+    link.download = 'riepilogo-${label.replace(/\s+/g,'_')}${nome?('-'+nome.replace(/\s+/g,'_')):''}.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    btn.textContent = testoOrig;
+    btn.disabled = false;
+  }).catch(function(err){
+    console.error(err);
+    alert('⚠️ Errore durante la creazione dell\\'immagine.');
+    btn.textContent = testoOrig;
+    btn.disabled = false;
+  });
+}
+<\/script>
 </body></html>`;
 
   const win = window.open('','_blank');
