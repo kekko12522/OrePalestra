@@ -152,6 +152,15 @@
   .time-picker-row { display:flex; align-items:center; gap:4px; }
   .time-picker-row select { flex:1; min-width:0; padding:10px 2px; text-align:center; text-align-last:center; }
   .time-picker-row .time-sep { color:var(--brown-light); font-weight:700; flex-shrink:0; }
+  .btn-turni-quick {
+    width:100%; padding:10px 8px; border:1.5px solid var(--rose-border); border-radius:10px;
+    background:var(--rose-pale); color:var(--rose-deep);
+    font-family:'DM Sans',sans-serif; font-size:0.82rem; font-weight:600;
+    cursor:pointer; transition:all 0.18s;
+    display:flex; align-items:center; justify-content:center; gap:4px; white-space:nowrap;
+  }
+  .btn-turni-quick:hover { background:white; border-color:var(--rose-deep); }
+  .btn-turni-quick:active { transform:scale(0.97); }
 
   /* ---- NAVIGAZIONE RAPIDA DATA (Oggi tab) ---- */
   .date-nav { display:flex; align-items:stretch; gap:8px; }
@@ -499,7 +508,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.8.3</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.0</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -665,7 +674,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.8.3</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.0</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -711,8 +720,8 @@
           <input type="number" id="input-ore" placeholder="es. 8" min="0" max="24" step="0.5">
         </div>
         <div>
-          <label>Bonus (h)</label>
-          <input type="number" id="input-extra" placeholder="es. 1" min="0" max="12" step="0.5">
+          <label style="visibility:hidden;">Turni</label>
+          <button type="button" class="btn-turni-quick" onclick="apriModalTurni()">⏱️ Calcola Turni</button>
         </div>
       </div>
     </div>
@@ -757,7 +766,6 @@
     <input type="text" id="input-nota" placeholder="es. turno notturno, visita medica…">
 
     <button class="btn btn-primary" onclick="aggiungiGiornata()">➕ Salva giornata</button>
-    <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="apriModalTurni()">⏱️ Inserimento rapido turni</button>
   </div>
 
   <div class="card">
@@ -883,16 +891,6 @@
       <div style="font-size:0.72rem;color:var(--brown-light);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Storico variazioni</div>
       <div class="paga-history-list" id="storico-paga-list"></div>
     </div>
-
-    <div class="divider"></div>
-
-    <label>Moltiplicatore straordinari</label>
-    <select id="set-extra" onchange="salvaSetting('moltiplicatoreExtra',this.value)">
-      <option value="1">× 1.0 — nessun extra</option>
-      <option value="1.25">× 1.25 — +25%</option>
-      <option value="1.5">× 1.5 — +50%</option>
-      <option value="2">× 2.0 — doppia paga</option>
-    </select>
   </div>
 
   <div class="card">
@@ -1012,7 +1010,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.8.3';
+const APP_VERSION = '0.9.0';
 
 
 // ============================================================
@@ -1120,12 +1118,11 @@ function pagaPerData(dataStr) {
 
 function calcolaGuadagno(g) {
   const p = pagaPerData(g.data);
-  const mx = parseFloat(settings.moltiplicatoreExtra) || 1.5;
   if (g.tipo === 'extra') return g.guadagnoPattuito != null ? parseFloat(g.guadagnoPattuito) || 0 : 0;
   if (g.tipo === 'ferie') return (g.sottotipo==='non_pagate') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
   if (g.tipo === 'permesso') return g.ore ? (parseFloat(g.ore)||0) * p : 0;
   if (g.tipo === 'malattia') return (g.sottotipo === 'non_pagata') ? 0 : (g.ore ? (parseFloat(g.ore)||0) * p : 0);
-  return (g.ore||0) * p + (g.extra||0) * p * mx;
+  return (g.ore||0) * p;
 }
 
 // ============================================================
@@ -1173,10 +1170,9 @@ function aggiungiGiornata() {
   const nota = document.getElementById('input-nota').value.trim();
   if (!data) { toast('📅 Scegli una data!'); return; }
 
-  var ore = 0, extra = 0, guadagnoPattuito = null;
+  var ore = 0, guadagnoPattuito = null;
   if (tipoSel === 'lavoro') {
     ore = parseFloat(document.getElementById('input-ore').value) || 0;
-    extra = parseFloat(document.getElementById('input-extra').value) || 0;
     if (!ore) { toast('⏱ Inserisci le ore lavorate!'); return; }
   } else if (tipoSel === 'extra') {
     ore = parseFloat(document.getElementById('input-ore-extra-spec').value) || 0;
@@ -1193,13 +1189,12 @@ function aggiungiGiornata() {
     giornate = giornate.filter(g => g.data !== data);
   }
 
-  giornate.push({ data: data, tipo: tipoSel, sottotipo: tipoSel==='ferie' ? ferieTipo : (tipoSel==='malattia' ? malattia_tipo : null), ore: ore, extra: extra, guadagnoPattuito: guadagnoPattuito, nota: nota, ts: Date.now() });
+  giornate.push({ data: data, tipo: tipoSel, sottotipo: tipoSel==='ferie' ? ferieTipo : (tipoSel==='malattia' ? malattia_tipo : null), ore: ore, guadagnoPattuito: guadagnoPattuito, nota: nota, ts: Date.now() });
   giornate.sort((a,b) => a.data.localeCompare(b.data));
   salvaDatiUtente();
   pushToSheets();
 
   document.getElementById('input-ore').value = '';
-  document.getElementById('input-extra').value = '';
   var eOs = document.getElementById('input-ore-extra-spec'); if(eOs) eOs.value = '';
   var eGp = document.getElementById('input-guad-extra'); if(eGp) eGp.value = '';
   document.getElementById('input-nota').value = '';
@@ -1370,7 +1365,7 @@ function confermaTurni() {
     giornate = giornate.filter(g => g.data !== data);
   }
 
-  giornate.push({ data: data, tipo: 'lavoro', sottotipo: null, ore: turniOreCalcolate, extra: 0, guadagnoPattuito: null, nota: nota, ts: Date.now() });
+  giornate.push({ data: data, tipo: 'lavoro', sottotipo: null, ore: turniOreCalcolate, guadagnoPattuito: null, nota: nota, ts: Date.now() });
   giornate.sort((a,b) => a.data.localeCompare(b.data));
   salvaDatiUtente();
   pushToSheets();
@@ -1425,7 +1420,7 @@ function entryHTML(g, showDel=true) {
   const tipo = g.tipo || 'lavoro';
   const label = ({lavoro:'💼', ferie: g.sottotipo==='non_pagate' ? '🌴🚫' : '🌴💰', malattia: g.sottotipo==='non_pagata' ? '🤒🚫' : '🤒💊', extra:'⚡'})[tipo] || '📋';
   const oreTxt = tipo === 'lavoro'
-    ? fmtOre(g.ore) + (g.extra ? ` <small style="color:var(--gold)">+${fmtOre(g.extra)}</small>` : '')
+    ? fmtOre(g.ore)
     : tipo === 'ferie' ? 'Ferie'
     : tipo === 'malattia' ? 'Malattia'
     : tipo === 'extra' ? fmtOre(g.ore||0) + ' · ' + (g.guadagnoPattuito != null ? fmtEuro(g.guadagnoPattuito) : '—')
@@ -1473,16 +1468,8 @@ function apriModalGiorno(data) {
         </div>` : ''}
       ${tipo==='lavoro' ? `
         <div class="setting-row" style="padding:8px 0">
-          <span class="setting-label">Ore ordinarie</span>
+          <span class="setting-label">Ore lavorate</span>
           <span class="setting-value">${fmtOre(g.ore)}</span>
-        </div>
-        ${g.extra ? `<div class="setting-row" style="padding:8px 0">
-          <span class="setting-label">Bonus</span>
-          <span class="setting-value" style="color:var(--gold)">${fmtOre(g.extra)}</span>
-        </div>` : ''}
-        <div class="setting-row" style="padding:8px 0">
-          <span class="setting-label">Totale ore</span>
-          <span class="setting-value">${fmtOre((g.ore||0)+(g.extra||0))}</span>
         </div>` : ''}
       ${g.ore && tipo==='permesso' ? `<div class="setting-row" style="padding:8px 0"><span class="setting-label">Ore permesso</span><span class="setting-value" style="color:var(--gold)">${fmtOre(g.ore)}</span></div>` : ''}
       ${paga && tipo!=='malattia' ? `<div class="setting-row" style="padding:8px 0">
@@ -1515,16 +1502,15 @@ function renderMese() {
   // Le ore dei giorni "extra" si sommano alle ore totali del mese,
   // ma il loro guadagno (calcolato sotto da calcolaGuadagno) usa il valore pattuito, non ore*tariffa.
   const totOre   = lavoro.reduce((s,g) => s+g.ore, 0) + extraG.reduce((s,g) => s+(g.ore||0), 0);
-  const totExtra = lavoro.reduce((s,g) => s+(g.extra||0), 0);
   const totGuad  = del_mese.reduce((s,g) => s+calcolaGuadagno(g), 0);
   const obiettivo= parseFloat(settings.obiettivoOre) || 0;
-  const perc     = obiettivo ? Math.min(110, (totOre+totExtra)/obiettivo*100) : 0;
+  const perc     = obiettivo ? Math.min(110, totOre/obiettivo*100) : 0;
 
   renderCalendario(del_mese);
 
   document.getElementById('stats-mese').innerHTML = `
     <div class="stat-card">
-      <div class="stat-value">${fmtOre(totOre+totExtra)}</div>
+      <div class="stat-value">${fmtOre(totOre)}</div>
       <div class="stat-label">Ore lavorate</div>
     </div>
     <div class="stat-card green">
@@ -1547,7 +1533,7 @@ function renderMese() {
     </div>` : ''}
     ${obiettivo ? `<div class="stat-card" style="grid-column:1/-1">
       <div class="progress-wrap">
-        <div class="progress-label"><span>Obiettivo mensile</span><span>${fmtOre(totOre+totExtra)} / ${fmtOre(obiettivo)}</span></div>
+        <div class="progress-label"><span>Obiettivo mensile</span><span>${fmtOre(totOre)} / ${fmtOre(obiettivo)}</span></div>
         <div class="progress-bar"><div class="progress-fill ${perc>100?'over':''}" style="width:${Math.min(100,perc)}%"></div></div>
       </div>
     </div>` : ''}
@@ -1662,7 +1648,7 @@ function precompilData(ds) {
 // ============================================================
 function renderGraficoSettimane(del_mese, y, m) {
   // Raggruppa per settimana ISO: trova il lunedì di ogni giorno
-  // Include sia le giornate "lavoro" (ore + bonus/straordinari) sia le giornate "extra"
+  // Include sia le giornate "lavoro" sia le giornate "extra"
   var conteggiabili = del_mese.filter(function(g){ return (g.tipo||'lavoro')==='lavoro' || g.tipo==='extra'; });
   var settimane = {}; // chiave = "YYYY-MM-DD" del lunedì della settimana
   var settLabels = {};
@@ -1671,8 +1657,7 @@ function renderGraficoSettimane(del_mese, y, m) {
     var dow = dt.getDay() === 0 ? 6 : dt.getDay() - 1; // 0=lun
     var lun = new Date(dt); lun.setDate(dt.getDate() - dow);
     var key = lun.getFullYear()+'-'+String(lun.getMonth()+1).padStart(2,'0')+'-'+String(lun.getDate()).padStart(2,'0');
-    // Ore standard + ore bonus/straordinario sommate correttamente per ogni giornata
-    var oreGiornata = (g.ore||0) + (g.extra||0);
+    var oreGiornata = (g.ore||0);
     settimane[key] = (settimane[key]||0) + oreGiornata;
     // Label: "4-10 mag"
     var fine = new Date(lun); fine.setDate(lun.getDate()+6);
@@ -1705,7 +1690,7 @@ function renderRiepilogo() {
   const extAnno  = delAnno.filter(g => g.tipo==='extra');
   const ferAnno  = delAnno.filter(g => g.tipo==='ferie');
   const malAnno  = delAnno.filter(g => g.tipo==='malattia');
-  const totOreA  = lavAnno.reduce((s,g) => s+g.ore+(g.extra||0), 0) + extAnno.reduce((s,g) => s+(g.ore||0), 0);
+  const totOreA  = lavAnno.reduce((s,g) => s+g.ore, 0) + extAnno.reduce((s,g) => s+(g.ore||0), 0);
   const totGuadA = delAnno.reduce((s,g) => s+calcolaGuadagno(g), 0);
   const ferUsate = ferAnno.length;
   const ferTot   = parseInt(settings.ferieAnnuali) || 0;
@@ -1757,7 +1742,7 @@ function renderRiepilogo() {
     const fer = list.filter(g=>g.tipo==='ferie').length;
     const mal = list.filter(g=>g.tipo==='malattia').length;
     const per = list.filter(g=>g.tipo==='permesso').length;
-    const totOre  = lav.reduce((s,g)=>s+g.ore+(g.extra||0),0) + ext.reduce((s,g)=>s+(g.ore||0),0);
+    const totOre  = lav.reduce((s,g)=>s+g.ore,0) + ext.reduce((s,g)=>s+(g.ore||0),0);
     const totGuad = list.reduce((s,g)=>s+calcolaGuadagno(g),0);
     const badges = [
       fer ? `<span class="month-badge badge-ferie">🌴 ${fer}g</span>` : '',
@@ -1785,7 +1770,7 @@ function renderGraficoAnno(y) {
     const k = chiaveM(y, mi);
     const lav = giornate.filter(g => g.data.startsWith(k) && (g.tipo||'lavoro')==='lavoro');
     const ext = giornate.filter(g => g.data.startsWith(k) && g.tipo==='extra');
-    return lav.reduce((s,g) => s+g.ore+(g.extra||0), 0) + ext.reduce((s,g) => s+(g.ore||0), 0);
+    return lav.reduce((s,g) => s+g.ore, 0) + ext.reduce((s,g) => s+(g.ore||0), 0);
   });
   const maxOre = Math.max(...dati, 1);
   const nowM = new Date().getMonth();
@@ -1813,7 +1798,6 @@ function vaiAlMese(y, m) {
 function renderImpostazioni() {
   document.getElementById('set-paga').value = settings.pagaOraria || '';
   document.getElementById('set-paga-dal').value = settings.pagaDal || '';
-  document.getElementById('set-extra').value = settings.moltiplicatoreExtra || 1.5;
   document.getElementById('set-obiettivo').value = settings.obiettivoOre || '';
   document.getElementById('set-ferie-tot').value = settings.ferieAnnuali || '';
   renderStoricoPaga();
@@ -1821,7 +1805,7 @@ function renderImpostazioni() {
 }
 
 function salvaSetting(key, val) {
-  const numKeys = ['pagaOraria','moltiplicatoreExtra','obiettivoOre','ferieAnnuali'];
+  const numKeys = ['pagaOraria','obiettivoOre','ferieAnnuali'];
   if (numKeys.includes(key)) val = parseFloat(val) || 0;
   settings[key] = val;
   salvaDatiUtente();
@@ -1935,7 +1919,7 @@ function importaDati(e) {
 function cancellaTutto() {
   if (!confirm('Sei sicura? Tutti i dati verranno cancellati.')) return;
   if (!confirm('Ultima conferma: cancellare tutto?')) return;
-  giornate=[]; settings={nome:'',pagaOraria:0,moltiplicatoreExtra:1.5,obiettivoOre:160,ferieAnnuali:26,pagaDal:''};
+  giornate=[]; settings={nome:'',pagaOraria:0,obiettivoOre:160,ferieAnnuali:26,pagaDal:''};
   storicoPaga=[];
   salvaDatiUtente();
   toast('🗑 Dati cancellati');
@@ -1953,7 +1937,7 @@ function updateHeader() {
   const delMese  = giornate.filter(g => g.data.startsWith(key));
   const lavoro   = delMese.filter(g => (g.tipo||'lavoro')==='lavoro');
   const extraG   = delMese.filter(g => g.tipo==='extra');
-  const totOre   = lavoro.reduce((s,g) => s + (g.ore||0) + (g.extra||0), 0)
+  const totOre   = lavoro.reduce((s,g) => s + (g.ore||0), 0)
                  + extraG.reduce((s,g) => s + (g.ore||0), 0);
   document.getElementById('header-sub').textContent =
     (nome ? 'Ciao '+nome+' '+avatar+'  ·  ' : '') +
@@ -1995,15 +1979,12 @@ function apriStampa() {
   const permesso = del_mese.filter(g=>g.tipo==='permesso');
   // Ore ordinarie (solo giornate "lavoro")
   const totOre   = lavoro.reduce((s,g)=>s+(g.ore||0),0);
-  // Ore di bonus/straordinario (campo "extra" sulle giornate di lavoro)
-  const totBonus = lavoro.reduce((s,g)=>s+(g.extra||0),0);
   // Ore delle giornate "Extra" (giornate a parte con guadagno pattuito)
   const totOreExtraG = extraG.reduce((s,g)=>s+(g.ore||0),0);
-  // Totale ore complessivo, comprensivo di bonus e giornate extra — coerente con header/riepilogo
-  const totOreComplessive = totOre + totBonus + totOreExtraG;
+  // Totale ore complessivo, comprensivo delle giornate extra — coerente con header/riepilogo
+  const totOreComplessive = totOre + totOreExtraG;
   const totGuad  = del_mese.reduce((s,g)=>s+calcolaGuadagno(g),0);
   const pagaBase = parseFloat(settings.pagaOraria)||0;
-  const mx       = parseFloat(settings.moltiplicatoreExtra)||1.5;
   const nome     = settings.nome || (utenteCorrente ? utenteCorrente.nome : '') || '';
   const giorni   = lavoro.length + extraG.length;
   const mediaOre = giorni ? totOreComplessive/giorni : 0;
@@ -2015,20 +1996,15 @@ function apriStampa() {
     const guad = calcolaGuadagno(g);
     const dow  = new Date(g.data+'T12:00:00').toLocaleDateString('it-IT',{weekday:'long'});
     const dataFmt = new Date(g.data+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
-    // Ore base: per "lavoro" sono g.ore, per "extra" sono le ore effettive (g.ore)
+    // Ore: per "lavoro" sono g.ore, per "extra" sono le ore effettive (g.ore)
     const oreBase = (tipo==='lavoro' || tipo==='extra') ? (g.ore||0) : 0;
-    // Bonus: presente solo sulle giornate "lavoro" (campo g.extra)
-    const oreBonus = tipo==='lavoro' ? (g.extra||0) : 0;
-    const oreTot = oreBase + oreBonus;
     const bgRow = tipo==='ferie'?'#f0faf4':tipo==='malattia'?'#eef4fa':tipo==='permesso'?'#fdf9ee':tipo==='extra'?'#fdf9ee':i%2===0?'#fff':'#fdf5f7';
     return `<tr style="background:${bgRow}">
       <td class="td-n">${i+1}</td>
       <td class="td-day">${dow.charAt(0).toUpperCase()+dow.slice(1)}</td>
       <td class="td-date">${dataFmt}</td>
       <td style="text-align:center;font-size:0.8rem">${tipoLabel[tipo]||tipo}</td>
-      <td class="td-h">${oreBase?fmtOre(oreBase):'—'}</td>
-      <td class="td-h extra">${oreBonus?'+'+fmtOre(oreBonus):'—'}</td>
-      <td class="td-h total">${oreTot?fmtOre(oreTot):'—'}</td>
+      <td class="td-h total">${oreBase?fmtOre(oreBase):'—'}</td>
       <td class="td-earn">${pagaBase&&tipo!=='malattia'?fmtEuro(guad):(tipo==='extra'?fmtEuro(guad):'—')}</td>
       <td class="td-note">${g.nota||''}</td>
     </tr>`;
@@ -2063,14 +2039,13 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
 .td-day{font-weight:500;width:84px}
 .td-date{color:#7a5a5a;width:88px}
 .td-h{text-align:right;font-family:'Playfair Display',serif;width:68px}
-.td-h.extra{color:#d4a853;font-weight:600}.td-h.total{color:#c97090;font-weight:700}
+.td-h.total{color:#c97090;font-weight:700}
 .td-earn{text-align:right;color:#5a9e7a;font-weight:700;width:88px}
 .td-note{color:#9e7070;font-style:italic;font-size:.73rem}
 .tfoot-row td{background:linear-gradient(90deg,#f5c6d6,#fde8ef);font-weight:700;font-size:.83rem;border-top:2px solid #c97090;border-bottom:none}
 .tfoot-row .td-earn{font-size:.95rem;color:#3a8a5a}
 .tfoot-row .td-h.total{font-size:.95rem;color:#7a2a50}
-.tfoot-row .td-h.extra{font-size:.9rem}
-.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}
 .sb{border:1.5px solid #f2ccd8;border-radius:10px;padding:14px 12px;text-align:center;background:#fdf5f7}
 .sb.green{border-color:#a8d8b8;background:#f0faf4}.sb.gold{border-color:#e8d090;background:#fdf9ee}.sb.blue{border-color:#b0cce0;background:#eef4fa}
 .sb-l{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b08080}
@@ -2089,7 +2064,6 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   tr{page-break-inside:avoid}
   .cover-owner{background:#fdf0f4!important;border-color:#e8a0b4!important}
-  .td-h.extra{color:#b8841f!important}
   thead{display:table-header-group}
 }
 </style></head><body>
@@ -2112,7 +2086,6 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
   <div class="cover-meta">
     <div><div class="cml">Ore lavorate</div><div class="cmv rose">${fmtOre(totOreComplessive)}</div></div>
     <div><div class="cml">Ore ordinarie</div><div class="cmv">${fmtOre(totOre+totOreExtraG)}</div></div>
-    <div><div class="cml">Bonus</div><div class="cmv gold">${totBonus?fmtOre(totBonus):'—'}</div></div>
     <div><div class="cml">Giorni lavoro</div><div class="cmv">${giorni}</div></div>
     ${pagaBase?`<div><div class="cml">Guadagno stimato</div><div class="cmv green">${fmtEuro(totGuad)}</div></div>`:''}
     ${ferie.length?`<div><div class="cml">Ferie</div><div class="cmv" style="color:#5a9e7a">${ferie.length} gg</div></div>`:''}
@@ -2125,15 +2098,12 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
   <table>
     <thead><tr>
       <th>#</th><th>Giorno</th><th>Data</th><th>Tipo</th>
-      <th style="text-align:right">Ore base</th><th style="text-align:right">Bonus</th>
-      <th style="text-align:right">Totale</th><th style="text-align:right">Guadagno</th><th>Note</th>
+      <th style="text-align:right">Ore</th><th style="text-align:right">Guadagno</th><th>Note</th>
     </tr></thead>
     <tbody>${righe}</tbody>
     <tfoot><tr class="tfoot-row">
       <td colspan="4"><strong>TOTALE ${label.toUpperCase()}</strong></td>
-      <td class="td-h" style="text-align:right"><strong>${fmtOre(totOre+totOreExtraG)}</strong></td>
-      <td class="td-h extra" style="text-align:right">${totBonus?'+'+fmtOre(totBonus):'—'}</td>
-      <td class="td-h total"><strong>${fmtOre(totOreComplessive)}</strong></td>
+      <td class="td-h total" style="text-align:right"><strong>${fmtOre(totOreComplessive)}</strong></td>
       <td class="td-earn">${pagaBase?fmtEuro(totGuad):'—'}</td>
       <td></td>
     </tr></tfoot>
@@ -2143,7 +2113,6 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
     <strong>📊 Dettaglio calcolo paga</strong>
     <div style="margin-top:10px">
       <div class="pr"><span>Ore ordinarie (${fmtOre(totOre)} × ${fmtEuro(pagaBase)}/h)</span><span>${fmtEuro(totOre*pagaBase)}</span></div>
-      ${totBonus?`<div class="pr"><span>Bonus / straordinari (${fmtOre(totBonus)} × ${fmtEuro(pagaBase)}/h × ${mx})</span><span>${fmtEuro(totBonus*pagaBase*mx)}</span></div>`:''}
       ${totOreExtraG?`<div class="pr"><span>Giornate Extra (${fmtOre(totOreExtraG)} a guadagno pattuito)</span><span>${fmtEuro(extraG.reduce((s,g)=>s+calcolaGuadagno(g),0))}</span></div>`:''}
       <div class="pr"><span><strong>Totale stimato</strong></span><span><strong>${fmtEuro(totGuad)}</strong></span></div>
     </div>
@@ -2151,7 +2120,6 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
 
   <div class="summary-grid">
     <div class="sb"><div class="sb-l">Ore ordinarie</div><div class="sb-v">${fmtOre(totOre+totOreExtraG)}</div></div>
-    <div class="sb gold"><div class="sb-l">Bonus</div><div class="sb-v">${totBonus?fmtOre(totBonus):'—'}</div></div>
     <div class="sb green"><div class="sb-l">Ferie</div><div class="sb-v">${ferie.length||'—'}</div></div>
     <div class="sb blue"><div class="sb-l">Malattia</div><div class="sb-v">${malattia.length||'—'}</div></div>
   </div>
@@ -2279,7 +2247,7 @@ function mostraApp() {
 function caricaDatiUtente() {
   const uid = utenteCorrente.id;
   giornate    = S.get('giornate_'    + uid, []);
-  settings    = S.get('settings_'   + uid, { nome: utenteCorrente.nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
+  settings    = S.get('settings_'   + uid, { nome: utenteCorrente.nome, pagaOraria:0,  obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
   storicoPaga = S.get('storicoPaga_' + uid, []);
 }
 
@@ -2303,7 +2271,7 @@ function renderUserList() {
     const mese = new Date().toISOString().slice(0,7);
     const delMese = g.filter(x => x.data.startsWith(mese));
     const oreMese = delMese.filter(x => (x.tipo||'lavoro')==='lavoro')
-                     .reduce((s,x) => s + (x.ore||0) + (x.extra||0), 0)
+                     .reduce((s,x) => s + (x.ore||0), 0)
                    + delMese.filter(x => x.tipo==='extra')
                      .reduce((s,x) => s + (x.ore||0), 0);
     return `<div class="user-card" onclick="selezionaUtente('${u.id}')">
@@ -2423,7 +2391,7 @@ function creaUtente() {
   utenteCorrente = nuovoUtente;
   S.set('utenteCorrente', nuovoUtente);
 
-  settings    = { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  settings    = { nome, pagaOraria:0,  obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
   giornate    = [];
   storicoPaga = [];
   salvaDatiUtente();
@@ -2494,7 +2462,7 @@ function accediConCodice() {
 
   utenteCorrente = nuovoUtente;
   S.set('utenteCorrente', nuovoUtente);
-  giornate = []; settings = { nome: nomeDisplay, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  giornate = []; settings = { nome: nomeDisplay, pagaOraria:0,  obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
   storicoPaga = [];
   salvaDatiUtente();
   mostraApp(); // pullFromSheets scarica i dati automaticamente
@@ -2628,7 +2596,7 @@ async function accediEsistente() {
 
   utenteCorrente = u;
   S.set('utenteCorrente', u);
-  giornate = []; settings = { nome, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
+  giornate = []; settings = { nome, pagaOraria:0,  obiettivoOre:160, ferieAnnuali:26, pagaDal:'' };
   storicoPaga = [];
   salvaDatiUtente();
   mostraApp();
@@ -2739,7 +2707,7 @@ async function pullFromSheets() {
       if (data.settings) {
         settings = Object.assign({
           nome: utenteCorrente.nome, pagaOraria:0,
-          moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:''
+           obiettivoOre:160, ferieAnnuali:26, pagaDal:''
         }, data.settings);
         // Sincronizza l'avatar (scelto dall'admin) nella sessione attiva e nella
         // lista locale dei profili, così l'header e la schermata di login lo
@@ -3043,7 +3011,7 @@ async function adminSalvaProfilo() {
       // CREAZIONE NUOVO
       let utenti = S.get('utenti', []);
       if (!utenti.find(u => u.id === nuovoId)) { utenti.push(payload); S.set('utenti', utenti); }
-      S.set('settings_' + nuovoId, { nome, avatar, pin, pagaOraria:0, moltiplicatoreExtra:1.5, obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
+      S.set('settings_' + nuovoId, { nome, avatar, pin, pagaOraria:0,  obiettivoOre:160, ferieAnnuali:26, pagaDal:'' });
       // Salva su Worker — avatar/pin duplicati dentro "settings" e a livello radice
       try {
         await fetch(WORKER_URL+'/api/utente/'+nuovoId, {
