@@ -177,12 +177,14 @@
     cursor:pointer; transition:background 0.15s;
   }
   .date-nav-arrow:hover, .date-nav-arrow:active { background:var(--rose-pale); }
-  .date-oggi-btn {
-    display:block; width:100%; margin-top:8px; padding:7px; border:none; background:none;
-    color:var(--rose-deep); font-family:'DM Sans',sans-serif; font-size:0.76rem; font-weight:600;
-    cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+  .btn-oggi-inline {
+    flex-shrink:0; padding:5px 12px; border:1.5px solid var(--rose-border); border-radius:20px;
+    background:var(--rose-pale); color:var(--rose-deep); font-family:'DM Sans',sans-serif;
+    font-size:0.72rem; font-weight:600; cursor:pointer; transition:all 0.15s;
+    display:inline-flex; align-items:center; gap:4px; text-transform:none; letter-spacing:normal;
   }
-  .date-oggi-btn:hover { color:var(--rose-dark, var(--rose-deep)); }
+  .btn-oggi-inline:hover { background:white; border-color:var(--rose-deep); }
+  .btn-oggi-inline:active { transform:scale(0.96); }
 
   /* ---- TIPO GIORNATA PILLS ---- */
   .tipo-group { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
@@ -514,7 +516,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.1</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.2</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -680,7 +682,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.1</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.2</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -701,7 +703,10 @@
 <div id="tab-oggi" class="section active">
 
   <div class="card">
-    <div class="card-title">✏️ Aggiungi giornata</div>
+    <div class="card-title">
+      ✏️ Aggiungi giornata
+      <button type="button" class="btn-oggi-inline" onclick="andaOggiInput()">📍 Oggi</button>
+    </div>
 
     <label>Tipo di giornata</label>
     <div class="tipo-group" id="tipo-group">
@@ -717,7 +722,6 @@
       <input type="date" id="input-data">
       <button type="button" class="date-nav-arrow" onclick="cambiaGiornoInput(1)">›</button>
     </div>
-    <button type="button" class="date-oggi-btn" onclick="andaOggiInput()">📍 Torna a oggi</button>
 
     <div id="ore-section">
       <div class="row2 ore-turni-row">
@@ -918,9 +922,9 @@
       </div>
       <div style="font-size:0.70rem;color:var(--brown-light);margin-top:6px;">Ultimo sync: <span id="ultimo-sync">mai</span></div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-ghost" onclick="esportaDati()">📤 Esporta JSON</button>
-      <label for="import-input" class="btn btn-ghost" style="cursor:pointer;">📥 Importa JSON</label>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="esportaDati()">📤 Esporta JSON</button>
+      <label for="import-input" class="btn btn-ghost" style="flex:1;cursor:pointer;">📥 Importa JSON</label>
     </div>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="importaDati(event)">
     <div style="margin-top:12px;">
@@ -1016,7 +1020,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.9.1';
+const APP_VERSION = '0.9.2';
 
 
 // ============================================================
