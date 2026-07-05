@@ -161,6 +161,12 @@
   }
   .btn-turni-quick:hover { background:white; border-color:var(--rose-deep); }
   .btn-turni-quick:active { transform:scale(0.97); }
+  .ore-turni-row { align-items:stretch; }
+  .ore-turni-row input,
+  .ore-turni-row .btn-turni-quick {
+    height:44px; box-sizing:border-box; line-height:1;
+  }
+  .ore-turni-row .btn-turni-quick { padding:0 6px; margin:0; }
 
   /* ---- NAVIGAZIONE RAPIDA DATA (Oggi tab) ---- */
   .date-nav { display:flex; align-items:stretch; gap:8px; }
@@ -508,7 +514,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.0</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.1</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -674,7 +680,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.0</span></h1>
+      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.1</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -714,7 +720,7 @@
     <button type="button" class="date-oggi-btn" onclick="andaOggiInput()">📍 Torna a oggi</button>
 
     <div id="ore-section">
-      <div class="row2">
+      <div class="row2 ore-turni-row">
         <div>
           <label>Ore lavorate</label>
           <input type="number" id="input-ore" placeholder="es. 8" min="0" max="24" step="0.5">
@@ -1010,7 +1016,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.9.0';
+const APP_VERSION = '0.9.1';
 
 
 // ============================================================
@@ -1986,6 +1992,7 @@ function apriStampa() {
   const totGuad  = del_mese.reduce((s,g)=>s+calcolaGuadagno(g),0);
   const pagaBase = parseFloat(settings.pagaOraria)||0;
   const nome     = settings.nome || (utenteCorrente ? utenteCorrente.nome : '') || '';
+  const avatarUtente = (utenteCorrente && utenteCorrente.avatar) ? utenteCorrente.avatar : (settings.avatar || '🌸');
   const giorni   = lavoro.length + extraG.length;
   const mediaOre = giorni ? totOreComplessive/giorni : 0;
   const generato = new Date().toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric'});
@@ -2080,7 +2087,7 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
   <div class="cover-eyebrow">Riepilogo mensile ore lavorate</div>
   <div class="cover-title-row">
     <div class="cover-title">${label}</div>
-    <div class="cover-owner">👤 ${nome ? '<b>'+nome+'</b>' : 'Utente'}</div>
+    <div class="cover-owner">${avatarUtente} ${nome ? '<b>'+nome+'</b>' : 'Utente'}</div>
   </div>
   <div class="cover-sub">${nome?'Lavoratrice/Lavoratore: <strong>'+nome+'</strong>  ·  ':''} Generato il ${generato}</div>
   <div class="cover-meta">
