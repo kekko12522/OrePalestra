@@ -582,11 +582,6 @@
   body.dark-mode select {
     background-image: none;
   }
-  /* Fix schermata login/logout ("Chi sei?") in dark mode: lo sfondo era impostato
-     tramite inline style con altissima specificità, quindi va forzato con !important */
-  body.dark-mode #login-screen {
-    background: linear-gradient(160deg, #241820 0%, #1a1216 45%, #100c10 100%) !important;
-  }
   body.dark-mode .pin-key,
   body.dark-mode .user-card {
     box-shadow: var(--shadow-sm);
@@ -606,6 +601,38 @@
   body.dark-mode.accent-lilla  { --rose:#c0a0d8; --rose-deep:#c9a0e8; --rose-pale:#241c30; --rose-border:#4a3860; }
   body.dark-mode.accent-grigio { --rose:#a8a8b0; --rose-deep:#c0c0ca; --rose-pale:#201f22; --rose-border:#3a3a40; }
 
+  /* ---- Sfondi/gradienti coordinati per colore tema (solo Light Mode) ---- */
+  body.accent-blu header {
+    background: linear-gradient(135deg, #dceaf7 0%, #eef4fb 60%, #fdf8f5 100%);
+  }
+  body.accent-blu #login-screen {
+    background: linear-gradient(160deg, #dceaf7 0%, #eef4fb 45%, #f3e6e0 100%) !important;
+  }
+  body.accent-verde header {
+    background: linear-gradient(135deg, #d8f0e0 0%, #eaf7ee 60%, #fdf8f5 100%);
+  }
+  body.accent-verde #login-screen {
+    background: linear-gradient(160deg, #d8f0e0 0%, #eaf7ee 45%, #f3e6e0 100%) !important;
+  }
+  body.accent-lilla header {
+    background: linear-gradient(135deg, #ecdcf5 0%, #f5eefc 60%, #fdf8f5 100%);
+  }
+  body.accent-lilla #login-screen {
+    background: linear-gradient(160deg, #ecdcf5 0%, #f5eefc 45%, #f3e6e0 100%) !important;
+  }
+  body.accent-grigio header {
+    background: linear-gradient(135deg, #e2e2e6 0%, #eeeef0 60%, #fdf8f5 100%);
+  }
+  body.accent-grigio #login-screen {
+    background: linear-gradient(160deg, #e2e2e6 0%, #eeeef0 45%, #f3e6e0 100%) !important;
+  }
+  @media (min-width: 700px) {
+    body.accent-blu    { background: linear-gradient(160deg, #dceaf7 0%, #eef4fb 45%, #f3e6e0 100%); }
+    body.accent-verde  { background: linear-gradient(160deg, #d8f0e0 0%, #eaf7ee 45%, #f3e6e0 100%); }
+    body.accent-lilla  { background: linear-gradient(160deg, #ecdcf5 0%, #f5eefc 45%, #f3e6e0 100%); }
+    body.accent-grigio { background: linear-gradient(160deg, #e2e2e6 0%, #eeeef0 45%, #f3e6e0 100%); }
+  }
+
   /* ---- Selettore cerchi colore accento (Settings) ---- */
   .accent-picker { display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; }
   .accent-dot {
@@ -616,6 +643,17 @@
   .accent-dot.selected { border-color:var(--brown); transform:scale(1.08); }
 
   /* ---- Font picker select già usa lo stile select globale ---- */
+
+  /* Fix schermata login/logout ("Chi sei?") in dark mode: lo sfondo era impostato
+     tramite inline style con altissima specificità, quindi va forzato con !important.
+     Questa regola è dichiarata per ultima cosicché, a parità di specificità con le
+     regole "accent-*" sopra, vinca sempre la Dark Mode quando è attiva. */
+  body.dark-mode #login-screen {
+    background: linear-gradient(160deg, #241820 0%, #1a1216 45%, #100c10 100%) !important;
+  }
+  body.dark-mode header {
+    background: linear-gradient(135deg, #2a1c22 0%, #241820 60%, #1c1416 100%) !important;
+  }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -636,7 +674,7 @@
 
     <!-- Logo -->
     <div style="text-align:center;padding:52px 0 32px;">
-      <div style="font-size:3.5rem;margin-bottom:10px;">🌸</div>
+      <div style="font-size:3.5rem;margin-bottom:10px;" id="app-emoji-login">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
       <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.5</div>
@@ -805,7 +843,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore 🌸 <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.5</span></h1>
+      <h1>Le Mie Ore <span id="app-emoji-header">🌸</span> <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.5</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -1028,14 +1066,6 @@
       <div class="accent-dot" data-accent="verde"  style="background:#5a9e72;" onclick="cambiaAccento('verde')"></div>
       <div class="accent-dot" data-accent="lilla"  style="background:#9868c0;" onclick="cambiaAccento('lilla')"></div>
       <div class="accent-dot" data-accent="grigio" style="background:#68687a;" onclick="cambiaAccento('grigio')"></div>
-    </div>
-
-    <div class="setting-row" style="margin-top:8px;">
-      <span class="setting-label">📳 Vibrazione tasti</span>
-      <label class="switch">
-        <input type="checkbox" id="toggle-vibrazione" onchange="toggleVibrazione(this.checked)">
-        <span class="switch-slider"></span>
-      </label>
     </div>
   </div>
 
@@ -1362,7 +1392,6 @@ function aggiungiGiornata() {
   giornate.sort((a,b) => a.data.localeCompare(b.data));
   salvaDatiUtente();
   pushToSheets();
-  vibraFeedback();
 
   document.getElementById('input-ore').value = '';
   var eOs = document.getElementById('input-ore-extra-spec'); if(eOs) eOs.value = '';
@@ -1539,7 +1568,6 @@ function confermaTurni() {
   giornate.sort((a,b) => a.data.localeCompare(b.data));
   salvaDatiUtente();
   pushToSheets();
-  vibraFeedback();
 
   toast('✅ Ore caricate!');
   chiudiModalTurniBtn();
@@ -1983,8 +2011,6 @@ function renderImpostazioni() {
   ACCENT_CLASSI.forEach(function(c){ if (document.body.classList.contains(c)) accentoAttuale = c.replace('accent-',''); });
   aggiornaSelezioneAccento(accentoAttuale);
 
-  document.getElementById('toggle-vibrazione').checked = (localStorage.getItem('vibrazione') === '1');
-
   renderStoricoPaga();
   bloccaAdmin(); // Nasconde sempre il pannello admin se si riapre il tab
 }
@@ -2012,6 +2038,7 @@ function cambiaFont(valore) {
 // COLORE ACCENTO
 // ============================================================
 const ACCENT_CLASSI = ['accent-blu','accent-verde','accent-lilla','accent-grigio'];
+const ACCENT_EMOJI = { rosa:'🌸', blu:'🦋', verde:'🌿', lilla:'🔮', grigio:'🕶️' };
 function cambiaAccento(colore) {
   ACCENT_CLASSI.forEach(c => document.body.classList.remove(c));
   if (colore && colore !== 'rosa') document.body.classList.add('accent-'+colore);
@@ -2020,11 +2047,19 @@ function cambiaAccento(colore) {
     if (utenteCorrente && utenteCorrente.id) localStorage.setItem('accentColor_'+utenteCorrente.id, colore);
   } catch(e) {}
   aggiornaSelezioneAccento(colore);
+  aggiornaEmojiTema(colore);
 }
 function aggiornaSelezioneAccento(colore) {
   document.querySelectorAll('.accent-dot').forEach(function(d){
     d.classList.toggle('selected', d.getAttribute('data-accent') === colore);
   });
+}
+function aggiornaEmojiTema(colore) {
+  const emoji = ACCENT_EMOJI[colore] || ACCENT_EMOJI.rosa;
+  const elHeader = document.getElementById('app-emoji-header');
+  const elLogin  = document.getElementById('app-emoji-login');
+  if (elHeader) elHeader.textContent = emoji;
+  if (elLogin)  elLogin.textContent  = emoji;
 }
 function applicaAccentoUtente() {
   let colore = 'rosa';
@@ -2038,20 +2073,7 @@ function applicaAccentoUtente() {
   ACCENT_CLASSI.forEach(c => document.body.classList.remove(c));
   if (colore && colore !== 'rosa') document.body.classList.add('accent-'+colore);
   aggiornaSelezioneAccento(colore);
-}
-
-// ============================================================
-// VIBRAZIONE / FEEDBACK APTICO
-// ============================================================
-function toggleVibrazione(attiva) {
-  try { localStorage.setItem('vibrazione', attiva ? '1' : '0'); } catch(e) {}
-}
-function vibraFeedback() {
-  try {
-    if (localStorage.getItem('vibrazione') === '1' && navigator.vibrate) {
-      navigator.vibrate(15);
-    }
-  } catch(e) { /* dispositivo non supportato: nessun errore da mostrare */ }
+  aggiornaEmojiTema(colore);
 }
 
 function salvaSetting(key, val) {
@@ -2473,6 +2495,7 @@ function mostraLogin() {
   document.querySelector('header').style.display = 'none';
   document.querySelector('.tabs').style.display = 'none';
   document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  applicaAccentoUtente();
   renderUserList();
   showLoginPanel('select');
 }
