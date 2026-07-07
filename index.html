@@ -17,6 +17,8 @@
     --rose-deep: #c97090;
     --rose-pale: #fdf0f4;
     --rose-border: #f2ccd8;
+    --bg-from: #ffeef2;
+    --bg-to: #ffd6e0;
     --cream: #fdf8f5;
     --brown: #5c3d3d;
     --brown-light: #9e7070;
@@ -58,7 +60,7 @@
   }
   @media (min-width: 700px) {
     body {
-      background: linear-gradient(160deg, #f5c6d6 0%, #fde8ef 45%, #f3e6e0 100%);
+      background: linear-gradient(160deg, var(--bg-from) 0%, var(--bg-to) 45%, #f3e6e0 100%);
       padding-bottom: 0;
     }
     .app-shell {
@@ -79,7 +81,7 @@
 
   /* ---- HEADER ---- */
   header {
-    background: linear-gradient(135deg, #f5c6d6 0%, #fde8ef 60%, #fdf8f5 100%);
+    background: linear-gradient(135deg, var(--bg-from) 0%, var(--bg-to) 60%, #fdf8f5 100%);
     padding: 24px 20px 18px;
     border-bottom: 1px solid var(--rose-border);
     position: relative; overflow: hidden;
@@ -88,6 +90,9 @@
     content:''; position:absolute; width:200px; height:200px;
     background: radial-gradient(circle, rgba(232,160,180,0.3) 0%, transparent 70%);
     top:-60px; right:-40px; pointer-events:none;
+  }
+  #login-screen {
+    background: linear-gradient(160deg, var(--bg-from) 0%, var(--bg-to) 40%, #fdf8f5 100%);
   }
   .header-row { display:flex; align-items:center; justify-content:space-between; }
   header h1 { font-family:'Playfair Display',serif; font-size:1.7rem; color:var(--rose-deep); line-height:1.2; }
@@ -588,50 +593,17 @@
   }
 
   /* ============================================================
-     COLORE D'ACCENTO (tema chiaro)
+     COLORE D'ACCENTO — 8 temi pastello (chiaro + scuro)
+     Da v1.0.0 i colori d'accento e gli sfondi/gradienti coordinati
+     (--rose, --rose-deep, --rose-pale, --rose-border, --bg-from, --bg-to)
+     vengono impostati dinamicamente via JavaScript (funzione applicaTema())
+     direttamente come CSS custom properties sull'elemento <body>.
+     Questo garantisce che header, login screen e sfondo desktop si
+     aggiornino sempre insieme al colore scelto nelle Impostazioni,
+     mantenendo però lo sfondo scuro fisso quando la Dark Mode è attiva
+     (vedi override "body.dark-mode" più sotto, dichiarati per ultimi
+     così da avere sempre precedenza sulle variabili di tema).
      ============================================================ */
-  body.accent-blu    { --rose:#7fa8d0; --rose-deep:#5a84b8; --rose-pale:#eef3fa; --rose-border:#c8dced; }
-  body.accent-verde  { --rose:#8fc2a0; --rose-deep:#5a9e72; --rose-pale:#eef7f0; --rose-border:#c8e6d0; }
-  body.accent-lilla  { --rose:#c0a0d8; --rose-deep:#9868c0; --rose-pale:#f5eefc; --rose-border:#e0ccf0; }
-  body.accent-grigio { --rose:#a8a8b0; --rose-deep:#68687a; --rose-pale:#f0f0f2; --rose-border:#d8d8e0; }
-
-  /* ---- COLORE D'ACCENTO (combinato con dark mode) ---- */
-  body.dark-mode.accent-blu    { --rose:#7fa8d0; --rose-deep:#8fb8e0; --rose-pale:#1c2530; --rose-border:#33475c; }
-  body.dark-mode.accent-verde  { --rose:#8fc2a0; --rose-deep:#7ecb9a; --rose-pale:#1c2c22; --rose-border:#2f4a38; }
-  body.dark-mode.accent-lilla  { --rose:#c0a0d8; --rose-deep:#c9a0e8; --rose-pale:#241c30; --rose-border:#4a3860; }
-  body.dark-mode.accent-grigio { --rose:#a8a8b0; --rose-deep:#c0c0ca; --rose-pale:#201f22; --rose-border:#3a3a40; }
-
-  /* ---- Sfondi/gradienti coordinati per colore tema (solo Light Mode) ---- */
-  body.accent-blu header {
-    background: linear-gradient(135deg, #dceaf7 0%, #eef4fb 60%, #fdf8f5 100%);
-  }
-  body.accent-blu #login-screen {
-    background: linear-gradient(160deg, #dceaf7 0%, #eef4fb 45%, #f3e6e0 100%) !important;
-  }
-  body.accent-verde header {
-    background: linear-gradient(135deg, #d8f0e0 0%, #eaf7ee 60%, #fdf8f5 100%);
-  }
-  body.accent-verde #login-screen {
-    background: linear-gradient(160deg, #d8f0e0 0%, #eaf7ee 45%, #f3e6e0 100%) !important;
-  }
-  body.accent-lilla header {
-    background: linear-gradient(135deg, #ecdcf5 0%, #f5eefc 60%, #fdf8f5 100%);
-  }
-  body.accent-lilla #login-screen {
-    background: linear-gradient(160deg, #ecdcf5 0%, #f5eefc 45%, #f3e6e0 100%) !important;
-  }
-  body.accent-grigio header {
-    background: linear-gradient(135deg, #e2e2e6 0%, #eeeef0 60%, #fdf8f5 100%);
-  }
-  body.accent-grigio #login-screen {
-    background: linear-gradient(160deg, #e2e2e6 0%, #eeeef0 45%, #f3e6e0 100%) !important;
-  }
-  @media (min-width: 700px) {
-    body.accent-blu    { background: linear-gradient(160deg, #dceaf7 0%, #eef4fb 45%, #f3e6e0 100%); }
-    body.accent-verde  { background: linear-gradient(160deg, #d8f0e0 0%, #eaf7ee 45%, #f3e6e0 100%); }
-    body.accent-lilla  { background: linear-gradient(160deg, #ecdcf5 0%, #f5eefc 45%, #f3e6e0 100%); }
-    body.accent-grigio { background: linear-gradient(160deg, #e2e2e6 0%, #eeeef0 45%, #f3e6e0 100%); }
-  }
 
   /* ---- Selettore cerchi colore accento (Settings) ---- */
   .accent-picker { display:flex; gap:12px; flex-wrap:wrap; margin-top:6px; }
@@ -658,18 +630,73 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
-<script>(function(){
+<script>
+// ============================================================
+// TEMI COLORE — 8 varianti pastello (chiaro + scuro) con emoji dedicata
+// Definito qui, in cima al body, così da poter essere applicato
+// immediatamente (prima ancora del resto dello script principale)
+// evitando qualunque "flash" del colore di default al caricamento.
+// ============================================================
+const THEMES = {
+  rosa:     { emoji:'🌸', light:{ rose:'#e8a0b4', roseDeep:'#c97090', rosePale:'#fdf0f4', roseBorder:'#f2ccd8', bgFrom:'#ffeef2', bgTo:'#ffd6e0' }, dark:{ rose:'#d98aa8', roseDeep:'#e88aa8', rosePale:'#2a2024', roseBorder:'#4a3038' } },
+  antico:   { emoji:'🌹', light:{ rose:'#c9a0a0', roseDeep:'#a86868', rosePale:'#f7ebeb', roseBorder:'#e0c4c4', bgFrom:'#f7ebeb', bgTo:'#e8cfcf' }, dark:{ rose:'#c9a0a0', roseDeep:'#d8a0a0', rosePale:'#282020', roseBorder:'#4a3838' } },
+  pesca:    { emoji:'🍑', light:{ rose:'#e8b090', roseDeep:'#d88858', rosePale:'#fff5f0', roseBorder:'#f5d0b8', bgFrom:'#fff5f0', bgTo:'#fcded0' }, dark:{ rose:'#e8b090', roseDeep:'#e8a070', rosePale:'#2a211c', roseBorder:'#4a3428' } },
+  vaniglia: { emoji:'☀️', light:{ rose:'#d8c070', roseDeep:'#c0a030', rosePale:'#fdfbf0', roseBorder:'#ece0b0', bgFrom:'#fdfbf0', bgTo:'#f5ecd0' }, dark:{ rose:'#d8c070', roseDeep:'#e0c860', rosePale:'#282418', roseBorder:'#4a4028' } },
+  salvia:   { emoji:'🍀', light:{ rose:'#8fc2a0', roseDeep:'#5a9e72', rosePale:'#f0f7f3', roseBorder:'#c8e6d0', bgFrom:'#f0f7f3', bgTo:'#dbebd1' }, dark:{ rose:'#8fc2a0', roseDeep:'#7ecb9a', rosePale:'#1c2c22', roseBorder:'#2f4a38' } },
+  polvere:  { emoji:'🦋', light:{ rose:'#7fa8d0', roseDeep:'#5a84b8', rosePale:'#eef5fc', roseBorder:'#c8dced', bgFrom:'#eef5fc', bgTo:'#d6e6f7' }, dark:{ rose:'#7fa8d0', roseDeep:'#8fb8e0', rosePale:'#1c2530', roseBorder:'#33475c' } },
+  glicine:  { emoji:'🦄', light:{ rose:'#c0a0d8', roseDeep:'#9868c0', rosePale:'#f5f0fa', roseBorder:'#e0ccf0', bgFrom:'#f5f0fa', bgTo:'#e3daf0' }, dark:{ rose:'#c0a0d8', roseDeep:'#c9a0e8', rosePale:'#241c30', roseBorder:'#4a3860' } },
+  sabbia:   { emoji:'🐚', light:{ rose:'#c2ab8a', roseDeep:'#a08050', rosePale:'#faf7f2', roseBorder:'#ece0c8', bgFrom:'#faf7f2', bgTo:'#ede4d7' }, dark:{ rose:'#c2ab8a', roseDeep:'#d0b890', rosePale:'#241f18', roseBorder:'#463c28' } }
+};
+// Mappa dei vecchi nomi tema (versioni < 1.0.0) verso la nuova palette a 8 colori,
+// per non perdere la preferenza già salvata dagli utenti esistenti.
+const THEME_LEGACY_MAP = { blu:'polvere', verde:'salvia', lilla:'glicine', grigio:'sabbia' };
+
+function risolviNomeTema(nome) {
+  if (!nome) return 'rosa';
+  if (THEMES[nome]) return nome;
+  if (THEME_LEGACY_MAP[nome]) return THEME_LEGACY_MAP[nome];
+  return 'rosa';
+}
+
+// Applica le variabili CSS del tema scelto su <body>, tenendo conto
+// della Dark Mode (che deve sempre mantenere lo sfondo scuro/morbido
+// indipendentemente dal colore d'accento selezionato).
+let temaAccentoCorrente = 'rosa';
+function applicaTema(nome) {
+  temaAccentoCorrente = risolviNomeTema(nome);
+  const tema = THEMES[temaAccentoCorrente];
+  const varianteBuia = document.body.classList.contains('dark-mode');
+  const c = varianteBuia ? tema.dark : tema.light;
+  document.body.style.setProperty('--rose', c.rose);
+  document.body.style.setProperty('--rose-deep', c.roseDeep);
+  document.body.style.setProperty('--rose-pale', c.rosePale);
+  document.body.style.setProperty('--rose-border', c.roseBorder);
+  if (!varianteBuia) {
+    document.body.style.setProperty('--bg-from', tema.light.bgFrom);
+    document.body.style.setProperty('--bg-to', tema.light.bgTo);
+  }
+  var elHeader = document.getElementById('app-emoji-header');
+  var elLogin  = document.getElementById('app-emoji-login');
+  if (elHeader) elHeader.textContent = tema.emoji;
+  if (elLogin)  elLogin.textContent  = tema.emoji;
+  var dots = document.querySelectorAll('.accent-dot');
+  for (var i=0; i<dots.length; i++) {
+    dots[i].classList.toggle('selected', dots[i].getAttribute('data-accent') === temaAccentoCorrente);
+  }
+}
+
+(function(){
   try {
     if (localStorage.getItem('darkMode')==='1') document.body.classList.add('dark-mode');
     var font = localStorage.getItem('fontStyle');
     if (font && font!=='default') document.body.classList.add('font-'+font);
-    var accent = localStorage.getItem('accentColor');
-    if (accent && accent!=='rosa') document.body.classList.add('accent-'+accent);
+    var accent = risolviNomeTema(localStorage.getItem('accentColor'));
+    applicaTema(accent);
   } catch(e) {}
 })();</script>
 
 <!-- ===== LOGIN SCREEN ===== -->
-<div id="login-screen" style="display:none; position:fixed; inset:0; background:linear-gradient(160deg,#f5c6d6 0%,#fde8ef 40%,#fdf8f5 100%); z-index:9999; overflow-y:auto; padding:0 0 40px;">
+<div id="login-screen" style="display:none; position:fixed; inset:0; z-index:9999; overflow-y:auto; padding:0 0 40px;">
   <div style="max-width:400px;margin:0 auto;padding:0 20px;">
 
     <!-- Logo -->
@@ -677,7 +704,7 @@
       <div style="font-size:3.5rem;margin-bottom:10px;" id="app-emoji-login">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v0.9.5</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v1.0.0</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -843,7 +870,7 @@
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore <span id="app-emoji-header">🌸</span> <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v0.9.5</span></h1>
+      <h1>Le Mie Ore <span id="app-emoji-header">🌸</span> <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v1.0.0</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -914,7 +941,7 @@
     </div>
 
     <div id="extra-section" style="display:none">
-      <div class="row2" style="align-items:start;">
+      <div class="row2 ore-turni-row">
         <div>
           <label>Ore effettive</label>
           <div style="position:relative;">
@@ -923,14 +950,16 @@
           </div>
         </div>
         <div>
-          <label>Guadagno pattuito</label>
-          <div style="position:relative;">
-            <input type="number" id="input-guad-extra" placeholder="es. 75.00" min="0" step="0.01" style="padding-right:28px;">
-            <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--brown-light);font-size:0.85rem;pointer-events:none;">€</span>
-          </div>
+          <label style="visibility:hidden;">Turni</label>
+          <button type="button" class="btn-turni-quick" onclick="apriModalTurni('extra')">⏱️ Calcola Turni</button>
         </div>
       </div>
-      <div style="font-size:0.72rem;color:var(--brown-light);margin-top:6px;">💡 Inserisci ore e guadagno reale del giorno.</div>
+      <label style="margin-top:10px;">Guadagno pattuito</label>
+      <div style="position:relative;">
+        <input type="number" id="input-guad-extra" placeholder="es. 75.00" min="0" step="0.01" style="padding-right:28px;">
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--brown-light);font-size:0.85rem;pointer-events:none;">€</span>
+      </div>
+      <div style="font-size:0.72rem;color:var(--brown-light);margin-top:6px;">💡 Inserisci le ore effettive (a mano o con "Calcola Turni") e il guadagno pattuito per la giornata.</div>
     </div>
 
     <label>Note (opzionale)</label>
@@ -1061,11 +1090,14 @@
 
     <label style="margin-top:14px;">Colore tema</label>
     <div class="accent-picker" id="accent-picker">
-      <div class="accent-dot" data-accent="rosa"   style="background:#c97090;" onclick="cambiaAccento('rosa')"></div>
-      <div class="accent-dot" data-accent="blu"    style="background:#5a84b8;" onclick="cambiaAccento('blu')"></div>
-      <div class="accent-dot" data-accent="verde"  style="background:#5a9e72;" onclick="cambiaAccento('verde')"></div>
-      <div class="accent-dot" data-accent="lilla"  style="background:#9868c0;" onclick="cambiaAccento('lilla')"></div>
-      <div class="accent-dot" data-accent="grigio" style="background:#68687a;" onclick="cambiaAccento('grigio')"></div>
+      <div class="accent-dot" data-accent="rosa"     title="Rosa Pastello"  style="background:#e8a0b4;" onclick="cambiaAccento('rosa')">🌸</div>
+      <div class="accent-dot" data-accent="antico"   title="Rosa Antico"    style="background:#a86868;" onclick="cambiaAccento('antico')">🌹</div>
+      <div class="accent-dot" data-accent="pesca"    title="Pesca Chiaro"   style="background:#d88858;" onclick="cambiaAccento('pesca')">🍑</div>
+      <div class="accent-dot" data-accent="vaniglia" title="Giallo Vaniglia" style="background:#c0a030;" onclick="cambiaAccento('vaniglia')">☀️</div>
+      <div class="accent-dot" data-accent="salvia"   title="Verde Salvia"   style="background:#5a9e72;" onclick="cambiaAccento('salvia')">🍀</div>
+      <div class="accent-dot" data-accent="polvere"  title="Azzurro Polvere" style="background:#5a84b8;" onclick="cambiaAccento('polvere')">🦋</div>
+      <div class="accent-dot" data-accent="glicine"  title="Lilla Glicine"  style="background:#9868c0;" onclick="cambiaAccento('glicine')">🦄</div>
+      <div class="accent-dot" data-accent="sabbia"   title="Sabbia / Beige" style="background:#a08050;" onclick="cambiaAccento('sabbia')">🐚</div>
     </div>
   </div>
 
@@ -1209,7 +1241,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '0.9.5';
+const APP_VERSION = '1.0.0';
 
 
 // ============================================================
@@ -1455,7 +1487,9 @@ function leggiOrarioTurno(prefix) {
   return h + ':' + m;
 }
 
-function apriModalTurni() {
+let turniTarget = 'lavoro';
+function apriModalTurni(target) {
+  turniTarget = target === 'extra' ? 'extra' : 'lavoro';
   TURNI_CAMPI.forEach(function(prefix) {
     document.getElementById(prefix + '-h').value = '';
     document.getElementById(prefix + '-m').value = '';
@@ -1551,6 +1585,18 @@ function calcolaTurni() {
 
 function confermaTurni() {
   if (!turniOreCalcolate) { toast('⏱ Inserisci almeno un turno!'); return; }
+
+  // Se il calcolatore è stato aperto dalla sezione "Extra", non salviamo
+  // subito una giornata: riportiamo solo le ore calcolate nel campo
+  // "Ore effettive" della giornata Extra, mantenendo intatta la stessa
+  // logica di calcolo dei turni usata per le giornate di Lavoro.
+  if (turniTarget === 'extra') {
+    const campoOreExtra = document.getElementById('input-ore-extra-spec');
+    if (campoOreExtra) campoOreExtra.value = turniOreCalcolate;
+    toast('⏱️ Ore riportate su Giornata Extra!');
+    chiudiModalTurniBtn();
+    return;
+  }
 
   const dataInput = document.getElementById('input-data').value;
   const oggi = new Date();
@@ -2007,9 +2053,9 @@ function renderImpostazioni() {
   else if (document.body.classList.contains('font-mono')) fontAttuale = 'mono';
   document.getElementById('set-font').value = fontAttuale;
 
-  let accentoAttuale = 'rosa';
-  ACCENT_CLASSI.forEach(function(c){ if (document.body.classList.contains(c)) accentoAttuale = c.replace('accent-',''); });
-  aggiornaSelezioneAccento(accentoAttuale);
+  document.querySelectorAll('.accent-dot').forEach(function(d){
+    d.classList.toggle('selected', d.getAttribute('data-accent') === temaAccentoCorrente);
+  });
 
   renderStoricoPaga();
   bloccaAdmin(); // Nasconde sempre il pannello admin se si riapre il tab
@@ -2021,6 +2067,10 @@ function renderImpostazioni() {
 function toggleDarkMode(attiva) {
   document.body.classList.toggle('dark-mode', attiva);
   try { localStorage.setItem('darkMode', attiva ? '1' : '0'); } catch(e) {}
+  // Riapplica il tema corrente: la Dark Mode ha una sua variante di colori
+  // (--rose/--rose-deep/--rose-pale/--rose-border) ma lo sfondo resta sempre
+  // quello scuro/morbido fisso, indipendentemente dall'accento scelto.
+  applicaTema(temaAccentoCorrente);
 }
 
 // ============================================================
@@ -2035,31 +2085,14 @@ function cambiaFont(valore) {
 }
 
 // ============================================================
-// COLORE ACCENTO
+// COLORE ACCENTO (8 temi — vedi oggetto THEMES definito in cima al body)
 // ============================================================
-const ACCENT_CLASSI = ['accent-blu','accent-verde','accent-lilla','accent-grigio'];
-const ACCENT_EMOJI = { rosa:'🌸', blu:'🦋', verde:'🌿', lilla:'🔮', grigio:'🕶️' };
 function cambiaAccento(colore) {
-  ACCENT_CLASSI.forEach(c => document.body.classList.remove(c));
-  if (colore && colore !== 'rosa') document.body.classList.add('accent-'+colore);
+  applicaTema(colore);
   try {
-    localStorage.setItem('accentColor', colore);
-    if (utenteCorrente && utenteCorrente.id) localStorage.setItem('accentColor_'+utenteCorrente.id, colore);
+    localStorage.setItem('accentColor', temaAccentoCorrente);
+    if (utenteCorrente && utenteCorrente.id) localStorage.setItem('accentColor_'+utenteCorrente.id, temaAccentoCorrente);
   } catch(e) {}
-  aggiornaSelezioneAccento(colore);
-  aggiornaEmojiTema(colore);
-}
-function aggiornaSelezioneAccento(colore) {
-  document.querySelectorAll('.accent-dot').forEach(function(d){
-    d.classList.toggle('selected', d.getAttribute('data-accent') === colore);
-  });
-}
-function aggiornaEmojiTema(colore) {
-  const emoji = ACCENT_EMOJI[colore] || ACCENT_EMOJI.rosa;
-  const elHeader = document.getElementById('app-emoji-header');
-  const elLogin  = document.getElementById('app-emoji-login');
-  if (elHeader) elHeader.textContent = emoji;
-  if (elLogin)  elLogin.textContent  = emoji;
 }
 function applicaAccentoUtente() {
   let colore = 'rosa';
@@ -2070,10 +2103,7 @@ function applicaAccentoUtente() {
       colore = localStorage.getItem('accentColor') || 'rosa';
     }
   } catch(e) {}
-  ACCENT_CLASSI.forEach(c => document.body.classList.remove(c));
-  if (colore && colore !== 'rosa') document.body.classList.add('accent-'+colore);
-  aggiornaSelezioneAccento(colore);
-  aggiornaEmojiTema(colore);
+  applicaTema(colore);
 }
 
 function salvaSetting(key, val) {
@@ -2244,6 +2274,14 @@ function apriStampa() {
   const del_mese = giornate.filter(g=>g.data.startsWith(key)).sort((a,b)=>a.data.localeCompare(b.data));
   if (!del_mese.length) { toast('📅 Nessuna giornata per questo mese!'); return; }
 
+  // Il report/PDF usa sempre la variante CHIARA del tema attivo (anche se
+  // l'app è in Dark Mode), così la stampa risulta sempre leggibile su
+  // carta bianca: solo il colore d'accento (testi, bordi, intestazioni)
+  // segue il tema scelto dall'utente nelle Impostazioni.
+  const temaReport = THEMES[risolviNomeTema(temaAccentoCorrente)];
+  const tc = temaReport.light;
+  const emojiReport = temaReport.emoji;
+
   const lavoro   = del_mese.filter(g=>(g.tipo||'lavoro')==='lavoro');
   const extraG   = del_mese.filter(g=>g.tipo==='extra');
   const ferie    = del_mese.filter(g=>g.tipo==='ferie');
@@ -2290,62 +2328,71 @@ function apriStampa() {
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:#fff;color:#3a2a2a}
-.cover{background:linear-gradient(135deg,#f5c6d6 0%,#fde8ef 55%,#fff 100%);padding:44px 52px 32px;border-bottom:2px solid #f2ccd8;position:relative;overflow:hidden}
-.cover::after{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,rgba(232,160,180,.2) 0%,transparent 70%);top:-80px;right:-60px}
-.cover-eyebrow{font-size:.68rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#c97090;margin-bottom:8px}
+.cover{background:linear-gradient(135deg,${tc.bgFrom} 0%,${tc.bgTo} 55%,#fff 100%);padding:44px 52px 32px;border-bottom:2px solid ${tc.roseBorder};position:relative;overflow:hidden}
+.cover::after{content:'';position:absolute;width:300px;height:300px;background:radial-gradient(circle,${tc.roseBorder} 0%,transparent 70%);opacity:.5;top:-80px;right:-60px}
+.cover-eyebrow{font-size:.68rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:${tc.roseDeep};margin-bottom:8px}
 .cover-title-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px}
-.cover-title{font-family:'Playfair Display',serif;font-size:2.4rem;color:#c97090;line-height:1.1}
-.cover-owner{font-family:'Playfair Display',serif;font-size:1.1rem;color:#7a3a50;background:rgba(255,255,255,.55);border:1.5px solid #f2ccd8;border-radius:30px;padding:7px 18px;white-space:nowrap}
-.cover-owner b{color:#c97090}
+.cover-title{font-family:'Playfair Display',serif;font-size:2.4rem;color:${tc.roseDeep};line-height:1.1}
+.cover-owner{font-family:'Playfair Display',serif;font-size:1.1rem;color:#7a3a50;background:rgba(255,255,255,.55);border:1.5px solid ${tc.roseBorder};border-radius:30px;padding:7px 18px;white-space:nowrap}
+.cover-owner b{color:${tc.roseDeep}}
 .cover-sub{font-size:.88rem;color:#9e7070;margin-top:6px}
 .cover-meta{margin-top:22px;display:flex;gap:28px;flex-wrap:wrap}
 .cml{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b08080}
 .cmv{font-family:'Playfair Display',serif;font-size:1.4rem;color:#3a2a2a;margin-top:2px}
-.cmv.green{color:#5a9e7a}.cmv.rose{color:#c97090}.cmv.gold{color:#c08a20}
+.cmv.green{color:#5a9e7a}.cmv.rose{color:${tc.roseDeep}}.cmv.gold{color:#c08a20}
 .body{padding:32px 52px 52px}
-h2{font-family:'Playfair Display',serif;font-size:1.05rem;color:#c97090;margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid #f2ccd8}
+h2{font-family:'Playfair Display',serif;font-size:1.05rem;color:${tc.roseDeep};margin-bottom:12px;padding-bottom:8px;border-bottom:1.5px solid ${tc.roseBorder}}
 table{width:100%;border-collapse:collapse;font-size:.8rem}
-thead tr{background:#f5c6d6}
+thead tr{background:${tc.bgFrom}}
 thead th{padding:9px 11px;text-align:left;font-weight:700;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:#7a3a50}
-td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align:middle}
+td{padding:8px 11px;border-bottom:1px solid ${tc.roseBorder};color:#3a2a2a;vertical-align:middle}
 .td-n{color:#b08080;font-size:.7rem;width:26px}
 .td-day{font-weight:500;width:84px}
 .td-date{color:#7a5a5a;width:88px}
 .td-h{text-align:right;font-family:'Playfair Display',serif;width:68px}
-.td-h.total{color:#c97090;font-weight:700}
+.td-h.total{color:${tc.roseDeep};font-weight:700}
 .td-earn{text-align:right;color:#5a9e7a;font-weight:700;width:88px}
 .td-note{color:#9e7070;font-style:italic;font-size:.73rem}
-.tfoot-row td{background:linear-gradient(90deg,#f5c6d6,#fde8ef);font-weight:700;font-size:.83rem;border-top:2px solid #c97090;border-bottom:none}
+.tfoot-row td{background:linear-gradient(90deg,${tc.bgFrom},${tc.bgTo});font-weight:700;font-size:.83rem;border-top:2px solid ${tc.roseDeep};border-bottom:none}
 .tfoot-row .td-earn{font-size:.95rem;color:#3a8a5a}
 .tfoot-row .td-h.total{font-size:.95rem;color:#7a2a50}
 .summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}
-.sb{border:1.5px solid #f2ccd8;border-radius:10px;padding:14px 12px;text-align:center;background:#fdf5f7}
+.sb{border:1.5px solid ${tc.roseBorder};border-radius:10px;padding:14px 12px;text-align:center;background:${tc.rosePale}}
 .sb.green{border-color:#a8d8b8;background:#f0faf4}.sb.gold{border-color:#e8d090;background:#fdf9ee}.sb.blue{border-color:#b0cce0;background:#eef4fa}
 .sb-l{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#b08080}
-.sb-v{font-family:'Playfair Display',serif;font-size:1.3rem;margin-top:4px;color:#c97090}
+.sb-v{font-family:'Playfair Display',serif;font-size:1.3rem;margin-top:4px;color:${tc.roseDeep}}
 .sb.green .sb-v{color:#4a9e6a}.sb.gold .sb-v{color:#c08a20}.sb.blue .sb-v{color:#5a8ab0}
-.paga-box{margin-top:20px;background:#fdf5f7;border:1px solid #f2ccd8;border-radius:10px;padding:14px 18px;font-size:.78rem}
-.paga-box strong{color:#c97090}
-.pr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #f2ccd8}
+.paga-box{margin-top:20px;background:${tc.rosePale};border:1px solid ${tc.roseBorder};border-radius:10px;padding:14px 18px;font-size:.78rem}
+.paga-box strong{color:${tc.roseDeep}}
+.pr{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed ${tc.roseBorder}}
 .pr:last-child{border-bottom:none;font-weight:700}
-.doc-footer{margin-top:32px;padding-top:14px;border-top:1px solid #f2ccd8;display:flex;justify-content:space-between;font-size:.7rem;color:#b08080}
+.doc-footer{margin-top:32px;padding-top:14px;border-top:1px solid ${tc.roseBorder};display:flex;justify-content:space-between;font-size:.7rem;color:#b08080}
 .doc-footer .owner{font-weight:700;color:#7a3a50}
-.no-print{background:#f5c6d6;padding:11px 22px;display:flex;align-items:center;justify-content:space-between;font-family:'DM Sans',sans-serif;font-size:.83rem;color:#7a3a50}
+.no-print{background:${tc.bgFrom};padding:11px 22px;display:flex;align-items:center;justify-content:space-between;font-family:'DM Sans',sans-serif;font-size:.83rem;color:#7a3a50}
 .report-capture{background:#fff}
 @media print{
   .no-print{display:none!important}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   tr{page-break-inside:avoid}
-  .cover-owner{background:#fdf0f4!important;border-color:#e8a0b4!important}
+  /* Rimuove i gradienti "pesanti" in stampa per risparmiare inchiostro:
+     lo sfondo torna bianco puro, ma il colore d'accento del tema resta
+     ben visibile su testi, bordi e linee di separazione. */
+  body{background:#fff!important}
+  .cover{background:#fff!important}
+  .cover::after{display:none!important}
+  .cover-owner{background:#fff!important;border-color:${tc.rose}!important}
+  .tfoot-row td{background:#fff!important}
+  thead tr{background:#fff!important}
+  .sb,.paga-box{background:#fff!important}
   thead{display:table-header-group}
 }
 </style></head><body>
 <div class="no-print">
-  <button onclick="window.close()" style="background:none;border:1px solid #f2ccd8;padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;cursor:pointer;color:#9e7070;">✕ Chiudi</button>
-  <span style="font-size:.8rem;color:#9e7070;">🌸 ${label}${nome?' · '+nome:''}</span>
+  <button onclick="window.close()" style="background:none;border:1px solid ${tc.roseBorder};padding:7px 14px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;cursor:pointer;color:#9e7070;">✕ Chiudi</button>
+  <span style="font-size:.8rem;color:#9e7070;">${emojiReport} ${label}${nome?' · '+nome:''}</span>
   <div style="display:flex;gap:8px;">
-    <button id="btn-salva-img" onclick="salvaComeImmagine()" style="background:white;color:#c97090;border:1.5px solid #c97090;padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">📸 Salva come Immagine</button>
-    <button onclick="window.print()" style="background:#c97090;color:white;border:none;padding:8px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">🖨️ Stampa / PDF</button>
+    <button id="btn-salva-img" onclick="salvaComeImmagine()" style="background:white;color:${tc.roseDeep};border:1.5px solid ${tc.roseDeep};padding:8px 16px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">📸 Salva come Immagine</button>
+    <button onclick="window.print()" style="background:${tc.roseDeep};color:white;border:none;padding:8px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.82rem;cursor:pointer;font-weight:600">🖨️ Stampa / PDF</button>
   </div>
 </div>
 <div class="report-capture" id="report-capture">
@@ -2397,7 +2444,7 @@ td{padding:8px 11px;border-bottom:1px solid #f2ccd8;color:#3a2a2a;vertical-align
     <div class="sb blue"><div class="sb-l">Malattia</div><div class="sb-v">${malattia.length||'—'}</div></div>
   </div>
   <div class="doc-footer">
-    <span>Le Mie Ore 🌸 · Generato il ${generato}</span>
+    <span>Le Mie Ore ${emojiReport} · Generato il ${generato}</span>
     <span class="owner">${nome?nome+' · '+label:label}</span>
   </div>
 </div>
