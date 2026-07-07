@@ -17,6 +17,7 @@
     --rose-deep: #c97090;
     --rose-pale: #fdf0f4;
     --rose-border: #f2ccd8;
+    --accent-color: var(--rose-deep);
     --bg-from: #ffeef2;
     --bg-to: #ffd6e0;
     --cream: #fdf8f5;
@@ -28,9 +29,13 @@
     --gold: #d4a853;
     --gold-pale: #fdf9ee;
     --gold-border: #e8d090;
-    --blue: #6a9ec0;
-    --blue-pale: #eef4fa;
-    --blue-border: #b0cce0;
+    /* Colore FISSO per "Malattia": non deve mai coincidere con l'accento
+       del tema (es. Azzurro Polvere), quindi usiamo un mattone/terracotta
+       protetto invece dell'azzurro. Il nome della variabile resta --blue
+       per compatibilità con tutti gli usi già presenti nel codice. */
+    --blue: #c17a4a;
+    --blue-pale: #faf1e7;
+    --blue-border: #ecc9a5;
     --red-pale: #fde8e8;
     --red: #c05050;
     --surface: #ffffff;
@@ -225,6 +230,8 @@
   }
   .btn-ghost:hover { background:var(--rose-pale); }
   .btn-danger { background:var(--red-pale); color:var(--red); border:none; font-size:0.72rem; padding:5px 9px; border-radius:8px; cursor:pointer; }
+  .btn-accent { background:linear-gradient(135deg, var(--rose-deep), var(--rose)); color:#fff; border:none; }
+  .btn-accent-outline { background:var(--rose-pale); color:var(--rose-deep); border:none; font-size:0.72rem; padding:5px 9px; border-radius:8px; cursor:pointer; }
   .json-btn {
     flex: 1; width: 50%; height: 44px; box-sizing: border-box;
     display: inline-flex; align-items: center; justify-content: center;
@@ -552,9 +559,9 @@
     --gold: #e0b563;
     --gold-pale: #2c2618;
     --gold-border: #4a3f22;
-    --blue: #86b8de;
-    --blue-pale: #1c2530;
-    --blue-border: #33475c;
+    --blue: #e0985f;
+    --blue-pale: #2e2419;
+    --blue-border: #5c4530;
     --red-pale: #35201f;
     --red: #e28080;
     --surface: #241c20;
@@ -644,12 +651,12 @@ const THEMES = {
   vaniglia: { emoji:'☀️', light:{ rose:'#d8c070', roseDeep:'#c0a030', rosePale:'#fdfbf0', roseBorder:'#ece0b0', bgFrom:'#fdfbf0', bgTo:'#f5ecd0' }, dark:{ rose:'#d8c070', roseDeep:'#e0c860', rosePale:'#282418', roseBorder:'#4a4028' } },
   salvia:   { emoji:'🍀', light:{ rose:'#8fc2a0', roseDeep:'#5a9e72', rosePale:'#f0f7f3', roseBorder:'#c8e6d0', bgFrom:'#f0f7f3', bgTo:'#dbebd1' }, dark:{ rose:'#8fc2a0', roseDeep:'#7ecb9a', rosePale:'#1c2c22', roseBorder:'#2f4a38' } },
   polvere:  { emoji:'🦋', light:{ rose:'#7fa8d0', roseDeep:'#5a84b8', rosePale:'#eef5fc', roseBorder:'#c8dced', bgFrom:'#eef5fc', bgTo:'#d6e6f7' }, dark:{ rose:'#7fa8d0', roseDeep:'#8fb8e0', rosePale:'#1c2530', roseBorder:'#33475c' } },
-  glicine:  { emoji:'🦄', light:{ rose:'#c0a0d8', roseDeep:'#9868c0', rosePale:'#f5f0fa', roseBorder:'#e0ccf0', bgFrom:'#f5f0fa', bgTo:'#e3daf0' }, dark:{ rose:'#c0a0d8', roseDeep:'#c9a0e8', rosePale:'#241c30', roseBorder:'#4a3860' } },
-  sabbia:   { emoji:'🐚', light:{ rose:'#c2ab8a', roseDeep:'#a08050', rosePale:'#faf7f2', roseBorder:'#ece0c8', bgFrom:'#faf7f2', bgTo:'#ede4d7' }, dark:{ rose:'#c2ab8a', roseDeep:'#d0b890', rosePale:'#241f18', roseBorder:'#463c28' } }
+  glicine:  { emoji:'🦄', light:{ rose:'#c0a0d8', roseDeep:'#9868c0', rosePale:'#f5f0fa', roseBorder:'#e0ccf0', bgFrom:'#f5f0fa', bgTo:'#e3daf0' }, dark:{ rose:'#c0a0d8', roseDeep:'#c9a0e8', rosePale:'#241c30', roseBorder:'#4a3860' } }
 };
-// Mappa dei vecchi nomi tema (versioni < 1.0.0) verso la nuova palette a 8 colori,
-// per non perdere la preferenza già salvata dagli utenti esistenti.
-const THEME_LEGACY_MAP = { blu:'polvere', verde:'salvia', lilla:'glicine', grigio:'sabbia' };
+// Mappa dei vecchi nomi tema (versioni precedenti, incluso il rimosso
+// "Sabbia / Beige") verso la palette attuale a 7 colori, per non perdere
+// la preferenza già salvata dagli utenti esistenti.
+const THEME_LEGACY_MAP = { blu:'polvere', verde:'salvia', lilla:'glicine', grigio:'antico', sabbia:'vaniglia' };
 
 function risolviNomeTema(nome) {
   if (!nome) return 'rosa';
@@ -704,7 +711,7 @@ function applicaTema(nome) {
       <div style="font-size:3.5rem;margin-bottom:10px;" id="app-emoji-login">🌸</div>
       <div style="font-family:'Playfair Display',serif;font-size:2rem;color:var(--rose-deep);line-height:1.2;">Le Mie Ore</div>
       <div style="font-size:0.82rem;color:var(--brown-light);margin-top:6px;">Tieni traccia del tuo lavoro</div>
-      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v1.0.0</div>
+      <div style="font-size:0.65rem;color:var(--brown-light);opacity:0.65;margin-top:8px;" id="version-badge-login">v1.0.1</div>
     </div>
 
     <!-- SELEZIONE UTENTE -->
@@ -870,7 +877,7 @@ function applicaTema(nome) {
   <div id="sync-bar" style="display:none;font-size:0.72rem;padding:5px 20px;text-align:center;font-weight:500;"></div>
   <div class="header-row">
     <div>
-      <h1>Le Mie Ore <span id="app-emoji-header">🌸</span> <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v1.0.0</span></h1>
+      <h1>Le Mie Ore <span id="app-emoji-header">🌸</span> <span class="app-version-badge" style="font-size:0.6rem;font-weight:400;color:var(--brown-light);opacity:0.6;vertical-align:middle;">v1.0.1</span></h1>
       <p id="header-sub">Tieni traccia del tuo lavoro</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
@@ -1030,7 +1037,7 @@ function applicaTema(nome) {
     <div class="entry-list" id="lista-mese"></div>
   </div>
 
-  <button class="btn btn-primary" style="background:linear-gradient(135deg,#c97090,#e8a0b4);" onclick="apriStampa()">
+  <button class="btn btn-primary btn-accent" onclick="apriStampa()">
     🖨️ Stampa / Esporta PDF questo mese
   </button>
 </div>
@@ -1097,7 +1104,6 @@ function applicaTema(nome) {
       <div class="accent-dot" data-accent="salvia"   title="Verde Salvia"   style="background:#5a9e72;" onclick="cambiaAccento('salvia')">🍀</div>
       <div class="accent-dot" data-accent="polvere"  title="Azzurro Polvere" style="background:#5a84b8;" onclick="cambiaAccento('polvere')">🦋</div>
       <div class="accent-dot" data-accent="glicine"  title="Lilla Glicine"  style="background:#9868c0;" onclick="cambiaAccento('glicine')">🦄</div>
-      <div class="accent-dot" data-accent="sabbia"   title="Sabbia / Beige" style="background:#a08050;" onclick="cambiaAccento('sabbia')">🐚</div>
     </div>
   </div>
 
@@ -1149,7 +1155,7 @@ function applicaTema(nome) {
     </div>
     <input type="file" id="import-input" accept=".json" style="display:none" onchange="importaDati(event)">
     <div style="margin-top:12px;">
-      <button class="btn btn-danger" style="width:100%;padding:11px;" onclick="cancellaTutto()">🗑 Cancella tutti i dati</button>
+      <button class="btn btn-accent" style="width:100%;padding:11px;" onclick="cancellaTutto()">🗑 Cancella tutti i dati</button>
     </div>
   </div>
 
@@ -1241,7 +1247,7 @@ const S = {
 // ── Cloudflare Worker config ─────────────────────────────────
 const WORKER_URL     = 'https://api-dati.w8hmc5b6rw.workers.dev';
 const WORKER_API_KEY = 'app-kekko-2024-secret';
-const APP_VERSION = '1.0.0';
+const APP_VERSION = '1.0.1';
 
 
 // ============================================================
@@ -1586,13 +1592,20 @@ function calcolaTurni() {
 function confermaTurni() {
   if (!turniOreCalcolate) { toast('⏱ Inserisci almeno un turno!'); return; }
 
-  // Se il calcolatore è stato aperto dalla sezione "Extra", non salviamo
-  // subito una giornata: riportiamo solo le ore calcolate nel campo
-  // "Ore effettive" della giornata Extra, mantenendo intatta la stessa
-  // logica di calcolo dei turni usata per le giornate di Lavoro.
+  // Se il calcolatore è stato aperto dalla sezione "Extra": riportiamo le
+  // ore calcolate nel campo "Ore effettive" (stessa identica logica di
+  // calcolo turni usata per le giornate di Lavoro) e compiliamo anche il
+  // campo Note con un resoconto testuale automatico, così che al salvataggio
+  // della giornata Extra (tramite il pulsante Salva principale) ore, nota e
+  // guadagno pattuito vengano tutti memorizzati e sommati correttamente.
   if (turniTarget === 'extra') {
     const campoOreExtra = document.getElementById('input-ore-extra-spec');
     if (campoOreExtra) campoOreExtra.value = turniOreCalcolate;
+    const notaInputExtra = document.getElementById('turni-nota').value.trim();
+    const campoNota = document.getElementById('input-nota');
+    if (campoNota && !campoNota.value.trim()) {
+      campoNota.value = notaInputExtra || ('Lavorate ' + fmtOre(turniOreCalcolate) + ' tramite calcolo turni');
+    }
     toast('⏱️ Ore riportate su Giornata Extra!');
     chiudiModalTurniBtn();
     return;
@@ -1671,7 +1684,7 @@ function entryHTML(g, showDel=true) {
     : tipo === 'extra' ? fmtOre(g.ore||0) + ' · ' + (g.guadagnoPattuito != null ? fmtEuro(g.guadagnoPattuito) : '—')
     : fmtOre(g.ore||0);
   const guad = settings.pagaOraria ? fmtEuro(calcolaGuadagno(g)) : '';
-  const delBtn = showDel ? `<button class="btn-danger" onclick="event.stopPropagation();eliminaGiornata('${g.data}')">✕</button>` : '';
+  const delBtn = showDel ? `<button class="btn-accent-outline" onclick="event.stopPropagation();eliminaGiornata('${g.data}')">✕</button>` : '';
   return `<div class="entry-item tipo-${tipo}" onclick="apriModalGiorno('${g.data}')">
     <div class="entry-dot dot-${tipo}"></div>
     <div class="entry-info">
@@ -1722,7 +1735,7 @@ function apriModalGiorno(data) {
         <span class="setting-value" style="color:var(--green)">${fmtEuro(guad)}</span>
       </div>` : ''}
       ${g.nota ? `<div style="background:var(--rose-pale);border-radius:8px;padding:10px;font-size:0.82rem;color:var(--brown-light);font-style:italic;">"${g.nota}"</div>` : ''}
-      <button class="btn btn-danger" style="width:100%;padding:10px;margin-top:4px;" onclick="eliminaGiornata('${data}')">🗑 Elimina questa giornata</button>
+      <button class="btn btn-accent" style="width:100%;padding:10px;margin-top:4px;" onclick="eliminaGiornata('${data}')">🗑 Elimina questa giornata</button>
     </div>`;
   document.getElementById('modal-overlay').classList.add('open');
 }
